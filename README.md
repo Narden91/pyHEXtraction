@@ -19,7 +19,7 @@
     ```
     pip install -r requirements.txt
     ```
-4. Give Script permissions:<br>
+4. Give Script permissions in Linux:<br>
     ```
     chmod +x main.py
     ```

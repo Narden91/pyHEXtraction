@@ -11,6 +11,9 @@
 *.tax2010
 *.vcf
 *.xml
+*.zip
+*.png
+
 
 # IPython
 profile_default/
@@ -166,5 +169,6 @@ poetry.toml
 .history
 .ionide
 
+data/*
 
 ### Directories ###
