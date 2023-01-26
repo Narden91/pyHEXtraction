@@ -1,0 +1,16 @@
+
+# Avoid Hydra to generate outputs
+defaults:  
+  - _self_
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled    
+  
+experiment:
+  data_source: data
+  file_extension: .csv
+
+
+hydra:  
+  output_subdir: null  
+  run:  
+    dir: .
