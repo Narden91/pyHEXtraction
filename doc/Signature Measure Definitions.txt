@@ -1,0 +1,65 @@
+Signature Measure Definitions 
+
+Name Units Description 
+N_STROKES   Number of down-strokes  
+T_CONTACT  s x 10-3  Time pen was down  
+T_AIR  s x 10-3  Time between strokes  
+T_TOTAL  s x 10-3  Total time from first pen-down to last pen-up  
+N_PENSTOP_STA   No. of pen-stops found at the start of strokes  
+N_PENSTOP_MID   No. of pen-stops found within strokes  
+N_PENSTOP_END   No. of pen-stops found at the end of strokes  
+D_START_POS  m x 10-6  Distance from start of signing line to first point  
+T_SUM_SEGSTA  s x 10-3  Sum of times strokes started  
+T_SUM_SEGEND  s x 10-3  Sum of times strokes ended  
+D_WIDTH  m x 10-6  Width of inked image  
+D_HEIGHT  m x 10-6  Height if inked image  
+D_WIDTH_OA  m x 10-6  Overall width including pen-up positions  
+D_HEIGHT_OA  m x 10-6  Overall height including pen-up positions  
+D_UP_DIST  m x 10-6  Pen-up distance  
+D_DOWN_DIST  m x 10-6  Pen-down distance  
+D_X_POS  m x 10-6  Positive X Down Distance  
+D_Y_POS  m x 10-6  Positive Y Down Distance  
+D_X_NEG  m x 10-6  Negative X Down Distance  
+D_Y_NEG  m x 10-6  Negative Y Down Distance  
+D_NET  m x 10-6  Net distance from start to end  
+D_SUM_SEGSTA  m x 10-6  Sum of stroke start distances (including up travel) 
+D_SUM_SEGEND  m x 10-6  Sum of stroke end distances (including up travel)  
+D_CENTROID_X  m x 10-6  X coordinate of centroid  
+D_CENTROID_Y  m x 10-6  Y coordinate of centroid  
+D_BASE_POS  m x 10-6  The baseline position  
+D_TOP_POS  m x 10-6  The topline position  
+D2_BOUNDING  mm2  Area of bounding rectangle  
+D2_NET  mm2  Net-area  
+D2_RUBBER  mm2  Rubber-band area  
+F_PRESSURE   Average pen force in device units  
+N_ASPECT_RATIO   Aspect ratio  
+N_XTURNS   Number of X turns  
+N_YTURNS   Number of Y turns  
+N_SPEEDCOR   Horizontal/vertical speed correlation  
+V_RMS_SPEED  m/s x 10-3 RMS pen speed  
+V_RMS_ACCEL  m/s x 10-3 RMS pen acceleration  
+G_VEXTREMES  deg x 10-3 Angle between vertical extremes  
+G_SUM_ROTATION  deg x 10-3 Sum of rotations  
+G_BASE_GRAD  deg x 10-3 The baseline gradient  
+G_TOP_GRAD  deg x 10-3 The topline gradient  
+N_EVENTS   Number of events  
+T_SUM_EVT_DUR  s x 10-6  Sum of event durations  
+D_SUM_EVT_POS  m x 10-6  Sum of event positions  
+T_SUM_EVT_TIMES  s x 10-6  Sum of event times  
+T_SUM_MAX_EVT_DUR  s x 10-6  Sum of maximum event durations  
+T_SUM_MIN_EVT_DUR  s x 10-6  Sum of minimum event durations  
+T_SUM_MAX_EVT_TIMES s x 10-6  Sum of maximum event times  
+T_SUM_MIN_EVT_TIMES s x 10-6  Sum of minimum event times  
+D_SUM_MAX_EVT_POS  m x 10-6  Sum of maximum event positions  
+D_SUM_MIN_EVT_POS  m x 10-6  Sum of minimum event positions  
+T_SUM_1ST_EVT_DUR  s x 10-6  Sum of first event durations  
+T_SUM_LST_EVT_DUR  s x 10-6  Sum of last event durations  
+N_MCP_XD   MCP: x displacement  
+N_MCP_YD   MCP: y displacement  
+N_MCP_OD   MCP: overall displacement  
+N_MCP_XS   MCP: x speed  
+N_MCP_YS   MCP: y speed  
+N_MCP_OS   MCP: overall speed  
+N_MCP_XA   MCP: x acceleration  
+N_MCP_YA   MCP: y acceleration  
+N_MCP_OA   MCP: overall acceleration  
