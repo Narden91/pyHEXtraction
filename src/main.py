@@ -19,7 +19,7 @@ def main(config):
         # Debug compute only the first folder of the folder list
         if count_var:    
             # Get all the .csv files (COMPLETE PATH) inside the folder 
-            file_list = [d.path for d in os.scandir(folder) if d.is_file() and d.path.endswith(config.file_extension)]
+            file_list = [f.path for f in os.scandir(folder) if f.is_file() and f.path.endswith(config.file_extension)]
             
             # Sort the file based on filename
             file_list = sorted(file_list, key = lambda x: len(x))
@@ -33,6 +33,11 @@ def main(config):
                     
                     file_dataframe = preprocessing.dataframe_from_csv(file)
                     
+                    print(f"Dataframe: \n {file_dataframe} \n")
+                    
+                    #file_dataframe = preprocessing.filter_dataframe_rows_by_value(file_dataframe, 'Phase', 'MoveStroke')
+                                        
+                    #print(f"Dataframe: \n {file_dataframe} \n")
   
                     count_var = False
                 else:

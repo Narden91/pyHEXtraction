@@ -42,7 +42,23 @@ def dataframe_from_csv(file_csv: str) -> pd.DataFrame:
     
     # Re-order dataframe columns 
     df = df[header + ['Timestamp']]
-                
-    print(df)
   
+    return df
+
+def filter_dataframe_rows_by_value(df:pd.DataFrame, column:str, value_to_filter: str) -> pd.DataFrame:
+    """
+    This function takes a dataframe, a column name, and a value to filter by, and returns a dataframe
+    with only the rows that match the value
+    
+    :param df: the dataframe you want to filter
+    :type df: pd.DataFrame
+    :param column: the column name in the dataframe that you want to filter by
+    :type column: str
+    :param value_to_filter: The value you want to filter by
+    :type value_to_filter: str
+    :return: A dataframe
+    """
+    
+    df = df.loc[df[column] == value_to_filter].reset_index(drop=True)
+    
     return df
