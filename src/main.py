@@ -2,6 +2,7 @@ import hydra
 import pandas as pd
 import re
 import os
+import csv
 import preprocessing 
 
 
@@ -15,26 +16,24 @@ def main(config):
     
     for folder in folders_in_data:
         
-        # Debug
+        # Debug compute only the first folder of the folder list
         if count_var:    
             # Get all the .csv files (COMPLETE PATH) inside the folder 
-            # file_list = [f.path for f in os.listdir(folder) if '.csv' in f]
-            file_list = [d.path for d in os.scandir(folder) if d.is_file() and d.path.endswith('csv')]
+            file_list = [d.path for d in os.scandir(folder) if d.is_file() and d.path.endswith(config.file_extension)]
             
             # Sort the file based on filename
             file_list = sorted(file_list, key = lambda x: len(x))
             
             for file in file_list:
                 
-                # Debug
+                # Debug compute only the first file in the folder
                 if count_var:     
                     
-                    print(f"Filename: {file}")
-                              
-                    csv_dataframe = pd.read_csv(file, delimiter=":")
+                    print(f"Filename: {file} \n")
                     
-                    print(f"Dataframe: {csv_dataframe}")
+                    file_dataframe = preprocessing.dataframe_from_csv(file)
                     
+  
                     count_var = False
                 else:
                     break  
