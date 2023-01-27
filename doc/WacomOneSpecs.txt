@@ -1,0 +1,2 @@
+	      Codice Modello	Dimensioni Schermo	Risoluzione Schermo	 Dimensioni Prodotto	Area attiva	  Tempo di Risposta	Livelli Pressione 	Angolo d'inclinazione penna supportato	Risoluzione della penna
+Wacom One	DTC133	             13.3“	        1920 x 1080 pixel	 225 x 357 x 14.6 mm	 294 x 166 mm	26 msec	          4096	                        60 gradi	                0,01 mm/punto(2.540 lpi)
