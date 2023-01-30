@@ -12,6 +12,7 @@ def main(config):
     # Get all the folders (complete PATH) inside data (to get only folder name replace f.path with f.name)
     folders_in_data = [f.path for f in os.scandir(config.data_source) if f.is_dir()]
 
+    # Debug variable
     count_var = True
     
     for folder in folders_in_data:

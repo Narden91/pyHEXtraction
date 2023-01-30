@@ -1,7 +1,6 @@
 import pandas as pd
 
 
-
 def dataframe_from_csv(file_csv: str) -> pd.DataFrame:
     """
     It reads the csv file line by line, separates the header from the rows, splits the header and rows
