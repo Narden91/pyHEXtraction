@@ -54,19 +54,28 @@ def main(config):
                     # Compute Speed and Acceleration from Points (x,y)
                     vel,acc = preprocessing.compute_speed_and_acceleration(x,y)
                     
-                    print(f"Num of points ({len(vel)}) \n Velocity: {vel} \n Acceleration: {acc} \n")
-                
+                    #print(f"Num of points ({len(vel)}) \n Velocity: {vel} \n Acceleration: {acc} \n")
+
+                    vel_mean = vel.mean()
+                    acc_mean = acc.mean()
+                    
+                    print(f"Num of points ({len(vel)}) \n Velocity Mean: {vel_mean} \n Acceleration Mean: {acc_mean} \n")
+                    
                     #Canvas dimensions
                     height = 1080 
                     width = 1920
                     thickness = 2
-                    color = [255,0,0]
+                    color = [0,0,0]
                 
                     # Array Scaling with MinMaxScaler
                     # x = np.int_(minmax_scale(x, feature_range=(0,width)))
                     # y = np.int_(minmax_scale(y, feature_range=(0,height)))
                     
                     x,y = preprocessing.scaling_array(x, y, width, height)
+                    
+                    # x=x-(1920-1280)
+                    # y=y-(1080-720)
+                    
                     
                     # Merge 2 array 
                     points = np.column_stack((x, y))
