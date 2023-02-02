@@ -63,8 +63,8 @@ def main(config):
                     color = [255,0,0]
                 
                     # Array Scaling with MinMaxScaler
-                    x = np.int_(minmax_scale(x, feature_range=(0,width)))
-                    y = np.int_(minmax_scale(y, feature_range=(0,height)))
+                    # x = np.int_(minmax_scale(x, feature_range=(0,width)))
+                    # y = np.int_(minmax_scale(y, feature_range=(0,height)))
                     
                     # Merge 2 array 
                     points = np.column_stack((x, y))

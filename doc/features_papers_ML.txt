@@ -1,0 +1,114 @@
+First Paper
+Acquisition of handwriting in children with and without dysgraphia: A computational approach
+T. Gargot, T. Asselborn, H. Pellerin, I. Zammouri, S. M. Anzalone, L Casteran, W. Johal, P. Dillenbourg,
+D. Cohen, C. Jolly
+
+BHK scores 
+-BHK handwriting quality score based on the sum of 13 quality item scores (raw and normalized with age):
+Writing is too large
+Widening of left-hand margin
+Bad letter or word alignment
+Insufficient word spacing
+Chaotic writing
+Absence of joins
+Collision of letters
+Inconsistent letter size (of x-height letters)
+Incorrect relative height of the
+various kinds of letters
+Letter distortion
+Ambiguous letter forms
+Correction of letter forms
+Unsteady writing trace
+-BHK speed (raw and normalized with age) 
+The numbers of characters written in 5 min
+
+Digital features
+Static features Space between Words
+Standard deviation of handwriting density
+Median of Power Spectral of Tremor Frequencies
+Kinematics features Median of Power Spectral of Speed
+Frequencies
+Distance to Mean of Speed
+Frequencies
+In-Air-Time ratio
+Pressure features Mean Pressure
+Mean speed of pressure change
+Standard deviation of speed of pressure change
+Tilt features Distance to Mean of Tilt-x
+Frequencies
+bandwidth_tiltx
+Median of Power Spectral of Tilt-y
+Frequencies
+
+
+Second paper
+Dysgraphia detection through machine learning
+Peter Drotár, Marek Dobeš
+
+-Feature description
+Velocity Overall change of position for a certain time mean, median, standard deviation, maximum, 
+minimum, 5th percentile, 95th percentile)
+Vertical/horizontal velocity Overall change of vertical/horizontal position for a certain time (mean, median, standard 
+deviation, maximum, minimum, 5th percentile, 95th percentile)
+Acceleration Change of speed for a certain time (mean, median, standard deviation, maximum, minimum, 
+5th percentile, 95th percentile)
+Jerk Rate of change of acceleration (mean, median, standard deviation, maximum, minimum, 5th 
+percentile, 95th percentile)
+Vertical/horizontal jerk Rate of change of acceleration in vertical position (mean, median, standard deviation, maximum, minimum, 5th percentile, 95th percentile)
+Pressure Te pressure of the pen tip on the surface (only for on-surface movement) (mean, median, 
+standard deviation, maximum, minimum, 5th percentile, 95th percentile)
+Altitude Te angle of the pen in the horizontal plane (only for on-surface movement) (mean, median, 
+standard deviation, maximum, minimum, 5th percentile, 95th percentile)
+Azimuth Te angle of the pen with respect to the vertical axis (only for on-surface movement) (mean, 
+median, standard deviation, maximum, minimum, 5th percentile, 95th percentile)
+Temporal duration of the segment (Mean, median, standard deviation, maximum, minimum)
+Length of the segment (Mean, median, standard deviation, maximum, minimum)
+Length in the vertical/horizontal direction (Mean, median, standard deviation, maximum, minimum)
+Width/height of the segment (Mean, median, standard deviation, maximum, minimum)
+Pen lifs Number of pen lifs during writing
+Number of Changes in velocity Number of local extrema of velocity
+Number of Changes in acceleration Number of local extrema of acceleration
+Duration Total writing time
+Length Length of the writing movement
+Vertical length Length of the writing movement in the vertical position
+Horizontal length Length of the writing movement in the horizontal position
+Dif end segments Diference between the minimal/median/mean/max of the y-positions of the frst and last 
+segments
+Dif pre-end segments Diference between the minimal/median/mean/max of the y-position of the second and penultimate segments
+Variance of y position Variance of the min/max/median/mean of the segment’s y-position
+
+
+Terzo Paper
+Dysgraphia Identification from Handwriting with Support Vector Machine Method
+
+-Features:
+Pressure
+Distance each letter
+Time (in second) 
+Ideal or not *1 OR 0
+Position (is in parallel or not) *1 OR 0
+Consistency of the boundary line *1 OR 0
+*1 mean yes, 0 mean no
+
+
+Quarto Paper
+Dyslexia and Dysgraphia prediction: A new machine learning approach
+Gilles Richard, Mathieu Serrurier
+
+-Features
+1. Slant : The slant feature corresponds to the direction of the handwriting. We normalize by converting the values from 0 (left slant) to 1 (right slant).
+2. Pressure: The estimated pressure of the handwriting from 0 (low) to 1 (high).
+3. Amplitude : This is the average gap size between x-height and ascending/descending
+letters, from 0 (low) to 1 (high).
+4. Letter Spacing: This estimates the average spacing between letters in a word. Typically, a cursive writing style will lead to 0, from 0 (small spacing0 to 1 (large
+spacing).
+5. Word spacing: This estimates the average spacing between words in a sentence,
+from 0 (small spacing) to 1 (large spacing).
+6. Slant Regularity: from 0 (not regular) to 1 (highly regular).
+7. Size Regularity: from 0 (not regular) to 1 (highly regular). Measure if the same
+letters vary.
+8. Horizontal Regularity: from 0 (the text doesn’t follow an horizontal line) to 1 (the
+text follows an horizontal line).
+
+
+
