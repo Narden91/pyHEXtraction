@@ -106,19 +106,28 @@ def remove_offset_points(x_array:np.array, y_array:np.array):
     return x_array, y_array
     
 
-def scaling_array(array:np.array, max_range:int) -> np.array:
-    """
-    It takes an array, subtracts the minimum value from each element, divides each element by the
-    maximum value minus the minimum value, and then multiplies each element by 255
+# def scaling_array(array:np.array, max_range:int) -> np.array:
+#     """
+#     It takes an array, subtracts the minimum value from each element, divides each element by the
+#     maximum value minus the minimum value, and then multiplies each element by 255
     
-    :param array: the array to be scaled
-    :type array: np.array
-    :return: The array is being returned.
-    """
+#     :param array: the array to be scaled
+#     :type array: np.array
+#     :return: The array is being returned.
+#     """
     
-    array = ((array - array.min()) * (1/(array.max() - array.min()) * max_range)).astype('uint8')
+#     array = ((array - array.min()) * (1/(array.max() - array.min()) * max_range)).astype('uint8')
     
-    return array
+#     return array
+
+
+def scaling_array(array_x:np.array, array_y:np.array, x_factor:int, y_factor:int ):
+    
+    array_x = array_x * x_factor/29400
+    
+    array_y = array_y * y_factor/16600
+    
+    return array_x.astype(int), array_y.astype(int)
 
 
 def compute_speed_and_acceleration(x:np.array, y:np.array):

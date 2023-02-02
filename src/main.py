@@ -59,12 +59,14 @@ def main(config):
                     #Canvas dimensions
                     height = 1080 
                     width = 1920
-                    thickness = 3
+                    thickness = 2
                     color = [255,0,0]
                 
                     # Array Scaling with MinMaxScaler
                     # x = np.int_(minmax_scale(x, feature_range=(0,width)))
                     # y = np.int_(minmax_scale(y, feature_range=(0,height)))
+                    
+                    x,y = preprocessing.scaling_array(x, y, width, height)
                     
                     # Merge 2 array 
                     points = np.column_stack((x, y))
