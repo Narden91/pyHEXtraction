@@ -2,11 +2,15 @@
 
 ## Prerequisites after first pull
 
-1. Create Python Virtual Environment:
+1. Create folder for data:
+    ```
+    create a folder called "data"
+    ```
+2. Create Python Virtual Environment:
     ```
     python -m venv env
     ```
-2. Activate Virtual Environment:<br>
+3. Activate Virtual Environment:<br>
     **Linux**
     ```
     source env/bin/activate
@@ -15,15 +19,15 @@
     ```
     env\Scripts\activate
     ```
-3. Load Required libraries
+4. Load Required libraries
     ```
     pip install -r requirements.txt
     ```
-4. Give Script permissions in Linux:<br>
+5. Give Script permissions in Linux:<br>
     ```
     chmod +x main.py
     ```
-5. Deactivate Virtual Environment:<br>
+6. Deactivate Virtual Environment:<br>
     **Linux**
     ```
     source env/bin/deactivate
