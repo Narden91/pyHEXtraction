@@ -1,8 +1,64 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import minmax_scale
+import cv2
+import os
 
 
+def process_images_files(images_folder_path: str, image_extension: str):
+    """
+    It takes a folder path and an image extension as input, and then it crops and resizes all the images
+    in the folder
+    
+    :param images_folder_path: The path to the folder containing the images you want to process
+    :type images_folder_path: str
+    :param image_extension: The extension of the image files you want to process
+    :type image_extension: str
+    """
+    
+    for image in images_folder_path:
+            # Get alle the images in the folder
+            images_file_list = [f.path for f in os.scandir(image) if f.is_file() and f.path.endswith(image_extension)]
+            
+            # Sort by filename
+            images_file_list = sorted(images_file_list, key = lambda x: len(x))
+                        
+            # Loop through the images and crop and resize them if they don't match the size 1920x1080
+            for file in images_file_list:
+                
+                crop_and_resize_image(file,file)
+
+
+def crop_and_resize_image(source_path:str, destination_path:str) -> None:
+    """
+    It reads an image from the specified source path, crops it to the specified coordinates, resizes it
+    to the specified dimensions, and saves it to the specified destination path
+    
+    :param source_path: The path to the image you want to crop and resize
+    :type source_path: str
+    :param destination_path: The path to the destination image
+    :type destination_path: str
+    """
+    # Read the image
+    img = cv2.imread(source_path)
+    
+    # Get image dimensions
+    height, width, channels = img.shape
+    
+    # print(f"Width: {width} \t Height: {height} \n")
+
+    if height != 1080 and width != 1920:   
+        # Crop the image to specified coordinates
+        cropped = img[0:720, 0:1280]
+        
+        # Resize the cropped image to specified dimensions
+        resized = cv2.resize(cropped, (1920, 1080))
+
+        # Save the resized image
+        cv2.imwrite(destination_path, resized)
+    else:
+        pass
+        
+   
 def dataframe_from_csv(file_csv: str) -> pd.DataFrame:
     """
     It reads the csv file line by line, separates the header from the rows, splits the header and rows
@@ -74,61 +130,35 @@ def points_type_filtering(df:pd.DataFrame, points_type:str = "onpaper") -> pd.Da
     return df
 
 
-def dataframe_column_to_array(df:pd.DataFrame, column_name:str) -> np.array:
+def process_and_create_arrays_points(data:pd.DataFrame) :
     """
-    > This function takes a dataframe and a column name and returns a numpy array of the values in that
-    column
+    Function that takes a dataframe, filter the points Columns, create 2 array of points
+    and returns two arrays without offset and scaled with their factors 
     
-    :param df: The dataframe that contains the data
-    :type df: pd.DataFrame
-    :param column_name: The name of the column you want to convert to an array
-    :type column_name: str
-    :return: A numpy array
-    """
-    return df[column_name].to_numpy()
-
-
-def remove_offset_points(x_array:np.array, y_array:np.array):
-    """
-    It takes in two arrays, subtracts 0 from each element in the array, and returns the two arrays
-    
-    :param x_array: the x-coordinates of the points
-    :type x_array: np.array
-    :param y_array: the y-coordinates of the points
-    :type y_array: np.array
-    :return: The x and y arrays with the offset points removed.
+    :param array_x: the x-coordinates of the points
+    :type array_x: np.array
+    :param array_y: the y-coordinates of the points
+    :type array_y: np.array
+    :return: the scaled x and y arrays.
     """
     
-    x_array = x_array - 0
+    # Filter Points from dataframe
+    array_x = data["PointX"].to_numpy()
     
-    y_array = y_array - 0
+    array_y = data["PointY"].to_numpy()
     
-    return x_array, y_array
+    # Compute the offset
+    array_x = array_x - 0
     
-
-# def scaling_array(array:np.array, max_range:int) -> np.array:
-#     """
-#     It takes an array, subtracts the minimum value from each element, divides each element by the
-#     maximum value minus the minimum value, and then multiplies each element by 255
+    array_y = array_y - 0
     
-#     :param array: the array to be scaled
-#     :type array: np.array
-#     :return: The array is being returned.
-#     """
+    # Scale the arrays
+    array_x = array_x * 1920/29400
     
-#     array = ((array - array.min()) * (1/(array.max() - array.min()) * max_range)).astype('uint8')
-    
-#     return array
-
-
-def scaling_array(array_x:np.array, array_y:np.array, x_factor:int, y_factor:int ):
-    
-    array_x = array_x * x_factor/29400
-    
-    array_y = array_y * y_factor/16600
+    array_y = array_y * 1080/16600
     
     return array_x.astype(int), array_y.astype(int)
-
+    
 
 def compute_speed_and_acceleration(x:np.array, y:np.array):
     """
@@ -148,3 +178,41 @@ def compute_speed_and_acceleration(x:np.array, y:np.array):
     dv = np.diff(v)
     a = dv / dt[:-1]
     return v,a
+
+    
+def create_image_from_array(x:np.array, y:np.array) -> None:
+    """
+    It takes two arrays as input, merges them, and then draws a line between each point in the array on a Canvas
+    
+    :param x: The x-coordinates of the points to be plotted
+    :type x: np.array
+    :param y: The y-coordinates of the points
+    :type y: np.array
+    """
+    
+    #Canvas dimensions
+    height = 1080 
+    width = 1920
+    thickness = 2
+    color = [0,0,0]
+    
+    # Create Image Matrix
+    image = np.zeros((height, width, 3), np.uint8)
+    
+    # Fill the Image with white color
+    image.fill(255)
+    
+    # Merge 2 array 
+    points = np.column_stack((x, y))
+    
+    # print(points)
+    
+    # Loop through all the points for drawing on the canvas
+    for i in range(1, len(points)):
+        start = tuple(points[i - 1])
+        end = tuple(points[i])
+        cv2.line(image, start, end, color, thickness)
+    
+    # Show the image in a new Window
+    # cv2.imshow("Image", image)
+    # cv2.waitKey(0)

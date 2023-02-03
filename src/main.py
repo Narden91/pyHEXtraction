@@ -15,17 +15,24 @@ def main(config):
     
     # Get all the folders (complete PATH) inside data (to get only folder name replace f.path with f.name)
     folders_in_data = [f.path for f in os.scandir(config.data_source) if f.is_dir()]
+    
+    #print(folders_in_data)
 
     # Debug variable
     count_var = True
     
     for folder in folders_in_data:
         
+        images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
+        
+        # Process the images in Images folder if necessary
+        preprocessing.process_images_files(images_folder,config.images_extension)
+        
         # Debug compute only the first folder of the folder list
         if count_var:    
             # Get all the .csv files (COMPLETE PATH) inside the folder 
             task_file_list = [f.path for f in os.scandir(folder) if f.is_file() and f.path.endswith(config.file_extension)]
-            
+                        
             # Sort the file based on filename
             task_file_list = sorted(task_file_list, key = lambda x: len(x))
             
@@ -37,67 +44,25 @@ def main(config):
                     print(f"Filename: {task} \n")
                     
                     task_dataframe = preprocessing.dataframe_from_csv(task)
-                    
-                    # print(f"Dataframe: \n {task_dataframe} \n")
-                    
+                                        
                     task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
                   
                     print(f"Dataframe: \n {task_dataframe} \n")
                     
-                    # Extract column from dataframe and convert to numpy array    
-                    x = preprocessing.dataframe_column_to_array(task_dataframe,"PointX")
-                    y = preprocessing.dataframe_column_to_array(task_dataframe,"PointY")
+                    # Create the arrays of points from the dataframe columns
+                    x,y = preprocessing.process_and_create_arrays_points(task_dataframe)
                     
-                    # Remove the Wacom One offset from points
-                    x,y = preprocessing.remove_offset_points(x,y)
+                    # Create image from array of points
+                    preprocessing.create_image_from_array(x,y)
                     
                     # Compute Speed and Acceleration from Points (x,y)
                     vel,acc = preprocessing.compute_speed_and_acceleration(x,y)
                     
-                    #print(f"Num of points ({len(vel)}) \n Velocity: {vel} \n Acceleration: {acc} \n")
-
+                    # Computer Vel and Acc mean of the array
                     vel_mean = vel.mean()
                     acc_mean = acc.mean()
                     
                     print(f"Num of points ({len(vel)}) \n Velocity Mean: {vel_mean} \n Acceleration Mean: {acc_mean} \n")
-                    
-                    #Canvas dimensions
-                    height = 1080 
-                    width = 1920
-                    thickness = 2
-                    color = [0,0,0]
-                
-                    # Array Scaling with MinMaxScaler
-                    # x = np.int_(minmax_scale(x, feature_range=(0,width)))
-                    # y = np.int_(minmax_scale(y, feature_range=(0,height)))
-                    
-                    x,y = preprocessing.scaling_array(x, y, width, height)
-                    
-                    # x=x-(1920-1280)
-                    # y=y-(1080-720)
-                    
-                    
-                    # Merge 2 array 
-                    points = np.column_stack((x, y))
-                    
-                    print(points)
-                    
-                    # Create Image Matrix
-                    image = np.zeros((height, width, 3), np.uint8)
-                    
-                    # Fill the Image with white color
-                    image.fill(255)
-                    
-                    # Loop through all the points for drawing on the canvas
-                    for i in range(1, len(points)):
-                        start = tuple(points[i - 1])
-                        end = tuple(points[i])
-                        cv2.line(image, start, end, color, thickness)
-                    
-                    # Show the image in a new Window
-                    cv2.imshow("Image", image)
-                    cv2.waitKey(0)
-
   
                     count_var = False
                 else:
