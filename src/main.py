@@ -43,8 +43,10 @@ def main(config):
                     
                     print(f"Filename: {task} \n")
                     
+                    # Create the dataframe from the csv data
                     task_dataframe = preprocessing.dataframe_from_csv(task)
                                         
+                    # Filter the dataframe by the type of points
                     task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
                   
                     print(f"Dataframe: \n {task_dataframe} \n")
