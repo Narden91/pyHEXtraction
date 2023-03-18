@@ -2,6 +2,16 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
+import matplotlib.pyplot as plt
+
+# GLOBAL VARIABLE
+# WACOM ONE DIGITIZER VALUES
+X_DIGITIZER = 29434
+Y_DIGITIZER = 16556 
+
+# DESIRED OUTPUT IMAGE RESOLUTION
+WIDTH_IMAGE = 1600
+HEIGHT_IMAGE = 900
 
 
 def process_images_files(images_folder_path: str, image_extension: str):
@@ -59,7 +69,7 @@ def crop_and_resize_image(source_path:str, destination_path:str) -> None:
         pass
         
    
-def dataframe_from_csv(file_csv: str) -> pd.DataFrame:
+def load_data_from_csv(file_csv: str) -> pd.DataFrame:
     """
     It reads the csv file line by line, separates the header from the rows, splits the header and rows
     by comma, removes the spaces, filters the desired values, creates a dataframe from the header and
@@ -130,34 +140,37 @@ def points_type_filtering(df:pd.DataFrame, points_type:str = "onpaper") -> pd.Da
     return df
 
 
-def process_and_create_arrays_points(data:pd.DataFrame) :
+def coordinates_manipulation(data:pd.DataFrame) :
     """
-    Function that takes a dataframe, filter the points Columns, create 2 array of points
-    and returns two arrays without offset and scaled with their factors 
+    It takes a dataframe of points, corrects the origin, filters the points, scales the points, and
+    transforms the points to the image origin
     
-    :param array_x: the x-coordinates of the points
-    :type array_x: np.array
-    :param array_y: the y-coordinates of the points
-    :type array_y: np.array
-    :return: the scaled x and y arrays.
+    :param data: the dataframe containing the data
+    :type data: pd.DataFrame
+    :return: The x, y, and pressure arrays.
     """
+    
+    # Correct the mismatched origin between Digitizer and Screen
+    data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
+    data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
     
     # Filter Points from dataframe
-    array_x = data["PointX"].to_numpy()
+    x_coordinates_array = data["PointX"].to_numpy()
+    y_coordinates_array = data["PointY"].to_numpy()
+        
+    # Scale the arrays (Point_x : X_digitizer = Point_x_image : WIDTH_des) -> Point_x_image   
+    x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
+    y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
+        
+    # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to IMAGE Standard Coordinates Origin (TOP_LEFT)
+    x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
+    y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
     
-    array_y = data["PointY"].to_numpy()
+    # Assign new x,y values
+    data["PointX"] = x_coordinates_array.astype(int)
+    data["PointY"] = y_coordinates_array.astype(int)
     
-    # Compute the offset
-    array_x = array_x - 0
-    
-    array_y = array_y - 0
-    
-    # Scale the arrays
-    array_x = array_x * 1920/29400
-    
-    array_y = array_y * 1080/16600
-    
-    return array_x.astype(int), array_y.astype(int)
+    return data
     
 
 def compute_speed_and_acceleration(x:np.array, y:np.array):
@@ -170,34 +183,90 @@ def compute_speed_and_acceleration(x:np.array, y:np.array):
     :type y: np.array
     :return: the speed and acceleration of the object.
     """
-   
+    
+    #  Calculate the n-th discrete difference along the given axis
     dx = np.diff(x)
     dy = np.diff(y)
     dt = np.diff(np.arange(len(x))) 
-    v = np.sqrt(dx**2 + dy**2) / dt
-    dv = np.diff(v)
-    a = dv / dt[:-1]
-    return v,a
+    
+    # Velocity
+    velocity = np.sqrt(dx**2 + dy**2) / dt
+    
+    dv = np.diff(velocity)
+    
+    # Acceleration
+    acceleration = dv / dt[:-1]
+    
+    return velocity , acceleration
 
-    
-def create_image_from_array(x:np.array, y:np.array) -> None:
+
+def create_dataframe_from_arrays(x:np.array, y:np.array, pressure:np.array, velocity:np.array, acceleration: np.array) -> pd.DataFrame:
     """
-    It takes two arrays as input, merges them, and then draws a line between each point in the array on a Canvas
+    This function takes in 5 arrays and returns a dataframe with the arrays as columns
     
-    :param x: The x-coordinates of the points to be plotted
+    :param x: x-coordinates of the points
     :type x: np.array
-    :param y: The y-coordinates of the points
+    :param y: np.array = the y-coordinates of the points
     :type y: np.array
+    :param pressure: np.array
+    :type pressure: np.array
+    :param velocity: the velocity of the pen at the point
+    :type velocity: np.array
+    :param acceleration: np.array
+    :type acceleration: np.array
+    :return: A dataframe with the columns "PointX", "PointY", "Pressure", "Velocity", and "Acceleration"
+    """
+
+    df = pd.DataFrame({"PointX": x, "PointY": y, "Pressure": pressure, "Velocity": velocity, "Acceleration": acceleration})
+    
+    return df
+
+def create_array_plot(x:np.array, y:np.array) -> None:
+    """
+    It takes two arrays, x and y, and plots them on a graph
+    
+    :param x: the x-axis values
+    :type x: np.array
+    :param y: np.array = The y-axis values
+    :type y: np.array
+    :return: None
     """
     
-    #Canvas dimensions
-    height = 1080 
-    width = 1920
+    plt.rcParams["figure.figsize"] = [7.50, 3.50]
+    plt.rcParams["figure.autolayout"] = True
+    
+    plt.title("Task Plot")
+    plt.plot(x, y, color="black")
+
+    plt.xlim([0, WIDTH_IMAGE])
+    plt.ylim([0, HEIGHT_IMAGE])
+    plt.show()
+    
+    return None
+        
+    
+def create_image_from_array(x:np.array, y:np.array, pressure:np.array) -> None:
+    """
+    > It takes in 3 arrays, and creates an image from them
+    
+    :param x: x-coordinates of the points
+    :type x: np.array
+    :param y: the y-coordinates of the points
+    :type y: np.array
+    :param pressure: the pressure of the pen on the tablet
+    :type pressure: np.array
+    """
+    
+    # Settings for onpaper
     thickness = 2
     color = [0,0,0]
     
+    # Settings for on air
+    thickness_onair = 1
+    color_onair = [0,255,0]
+    
     # Create Image Matrix
-    image = np.zeros((height, width, 3), np.uint8)
+    image = np.zeros((HEIGHT_IMAGE, WIDTH_IMAGE, 3), np.uint8)
     
     # Fill the Image with white color
     image.fill(255)
@@ -205,14 +274,22 @@ def create_image_from_array(x:np.array, y:np.array) -> None:
     # Merge 2 array 
     points = np.column_stack((x, y))
     
-    # print(points)
-    
     # Loop through all the points for drawing on the canvas
     for i in range(1, len(points)):
         start = tuple(points[i - 1])
         end = tuple(points[i])
-        cv2.line(image, start, end, color, thickness)
-    
+        
+        if pressure[i] != 0:
+            cv2.line(image, start, end, color, thickness)
+        else:
+            cv2.line(image, start, end, color_onair, thickness_onair)  
+   
     # Show the image in a new Window
-    # cv2.imshow("Image", image)
-    # cv2.waitKey(0)
+    cv2.imshow("Image", image)
+    cv2.waitKey(0)
+    
+    # filename = 'savedImage.jpg'
+    
+    # cv2.imwrite(filename, image)
+    
+    return None
