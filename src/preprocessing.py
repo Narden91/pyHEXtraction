@@ -5,6 +5,9 @@ import os
 import matplotlib.pyplot as plt
 
 # GLOBAL VARIABLE
+# Wacom Device Clock (Hz)
+CLOCK = 200
+
 # WACOM ONE DIGITIZER VALUES
 X_DIGITIZER = 29434
 Y_DIGITIZER = 16556 
@@ -12,6 +15,9 @@ Y_DIGITIZER = 16556
 # DESIRED OUTPUT IMAGE RESOLUTION
 WIDTH_IMAGE = 1600
 HEIGHT_IMAGE = 900
+
+# WIDTH_IMAGE = 1920
+# HEIGHT_IMAGE = 1080
 
 
 def process_images_files(images_folder_path: str, image_extension: str):
@@ -100,7 +106,7 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
     rows = [row[0:5] + row[-7:] for row in rows]
     
     # Create dataframe from header and rows
-    df = pd.DataFrame(rows,columns=header)
+    task_data = pd.DataFrame(rows,columns=header)
     
     # Pop Sequence, Timestamp and PenId
     header.pop(header.index('Sequence')) 
@@ -108,11 +114,23 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
     header.pop(header.index('PenId')) 
     
     # Re-order dataframe columns 
-    df = df[header + ['Timestamp']]
+    # df = df[header + ['Timestamp']]
+    task_data = task_data[header]
     
-    df = df.astype({'PointX': 'int32', 'PointY': 'int32','Pressure': 'int32', 'Rotation': 'int32', 'Azimuth': 'int32', 'Altitude': 'int32', 'TiltX': 'int32', 'TiltY': 'int32'})
-  
-    return df
+    # Cast columns values
+    task_data = task_data.astype({'PointX': 'int32', 'PointY': 'int32','Pressure': 'int32',
+                    'Rotation': 'int32', 'Azimuth': 'int32', 'Altitude': 'int32',
+                    'TiltX': 'int32', 'TiltY': 'int32'})
+    
+    # Insert time column at the end of the dataframe
+    # task_data["Time (msec)"] = task_data.index * (1/CLOCK)
+    
+    # Insert Time column at the beginning
+    task_data.insert(0, 'Time (msec)', task_data.index)
+    
+    task_data['Time (msec)'] = task_data['Time (msec)'] * (1/CLOCK) 
+
+    return task_data
 
 
 def points_type_filtering(df:pd.DataFrame, points_type:str = "onpaper") -> pd.DataFrame:
@@ -172,55 +190,7 @@ def coordinates_manipulation(data:pd.DataFrame) :
     
     return data
     
-
-def compute_speed_and_acceleration(x:np.array, y:np.array):
-    """
-    It computes the speed and acceleration of the traits given its x and y coordinates
     
-    :param x: the x-coordinates of the points
-    :type x: np.array
-    :param y: the y-coordinates of the trajectory
-    :type y: np.array
-    :return: the speed and acceleration of the object.
-    """
-    
-    #  Calculate the n-th discrete difference along the given axis
-    dx = np.diff(x)
-    dy = np.diff(y)
-    dt = np.diff(np.arange(len(x))) 
-    
-    # Velocity
-    velocity = np.sqrt(dx**2 + dy**2) / dt
-    
-    dv = np.diff(velocity)
-    
-    # Acceleration
-    acceleration = dv / dt[:-1]
-    
-    return velocity , acceleration
-
-
-def create_dataframe_from_arrays(x:np.array, y:np.array, pressure:np.array, velocity:np.array, acceleration: np.array) -> pd.DataFrame:
-    """
-    This function takes in 5 arrays and returns a dataframe with the arrays as columns
-    
-    :param x: x-coordinates of the points
-    :type x: np.array
-    :param y: np.array = the y-coordinates of the points
-    :type y: np.array
-    :param pressure: np.array
-    :type pressure: np.array
-    :param velocity: the velocity of the pen at the point
-    :type velocity: np.array
-    :param acceleration: np.array
-    :type acceleration: np.array
-    :return: A dataframe with the columns "PointX", "PointY", "Pressure", "Velocity", and "Acceleration"
-    """
-
-    df = pd.DataFrame({"PointX": x, "PointY": y, "Pressure": pressure, "Velocity": velocity, "Acceleration": acceleration})
-    
-    return df
-
 def create_array_plot(x:np.array, y:np.array) -> None:
     """
     It takes two arrays, x and y, and plots them on a graph
@@ -245,7 +215,7 @@ def create_array_plot(x:np.array, y:np.array) -> None:
     return None
         
     
-def create_image_from_array(x:np.array, y:np.array, pressure:np.array) -> None:
+def create_image_from_data(x:np.array, y:np.array, pressure:np.array) -> None:
     """
     > It takes in 3 arrays, and creates an image from them
     
@@ -288,8 +258,40 @@ def create_image_from_array(x:np.array, y:np.array, pressure:np.array) -> None:
     cv2.imshow("Image", image)
     cv2.waitKey(0)
     
-    # filename = 'savedImage.jpg'
+    # Save locally the image created
+    filename = 'savedImage.jpg'
     
-    # cv2.imwrite(filename, image)
+    cv2.imwrite(filename, image)
     
     return None
+
+
+def compute_speed_and_acceleration(x:np.array, y:np.array):
+    """
+    It computes the speed and acceleration of the traits given its x and y coordinates
+    
+    :param x: the x-coordinates of the points
+    :type x: np.array
+    :param y: the y-coordinates of the trajectory
+    :type y: np.array
+    :return: the speed and acceleration of the object.
+    """
+    
+    #  Calculate the n-th discrete difference along the given axis
+    dx = np.diff(x)
+    dy = np.diff(y)
+    dt = np.diff(np.arange(len(x))) 
+    
+    # Velocity
+    velocity = np.sqrt(dx**2 + dy**2) / dt
+    
+    
+    dv = np.diff(velocity)
+    
+    # Acceleration
+    acceleration = dv / dt[:-1]
+    acceleration = np.append(acceleration, 0)
+    acceleration = np.append(acceleration, 0)
+    velocity = np.append(velocity, 0)
+        
+    return velocity , acceleration

@@ -1,5 +1,6 @@
 import hydra
 import os
+import pandas as pd
 import preprocessing 
 
 
@@ -16,7 +17,7 @@ def main(config):
         images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
         
         # Process the images in Images folder if necessary
-        preprocessing.process_images_files(images_folder,config.settings.images_extension)
+        # preprocessing.process_images_files(images_folder,config.settings.images_extension)
         
         # Get all the .csv files (COMPLETE PATH) inside the folder 
         task_file_list = [f.path for f in os.scandir(folder) if f.is_file() and f.path.endswith(config.settings.file_extension)]
@@ -30,7 +31,7 @@ def main(config):
             # Debug compute only the first file in the folder
             if task_number < 1:     
                 
-                print(f"Filename: {task} \n")
+                #print(f"Filename: {task} \n")
                 
                 # Create the dataframe from the csv data
                 task_dataframe = preprocessing.load_data_from_csv(task)
@@ -38,31 +39,33 @@ def main(config):
                 # Filter the dataframe by the type of points
                 #task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
                 
-                print(f"Dataframe RAW: \n {task_dataframe} \n")
+                print(f"Raw Dataframe: \n {task_dataframe} \n")
                 
                 # Create the arrays of points from the dataframe columns
-                # x_coordinates_array, y_coordinates_array, pressure_array = preprocessing.process_and_create_arrays_points(task_dataframe)
-                
                 task_dataframe = preprocessing.coordinates_manipulation(task_dataframe)
                 
-                # Compute Speed and Acceleration from Points (x,y)
-                velocity, acceleration = preprocessing.compute_speed_and_acceleration(task_dataframe["PointX"].to_numpy(),
-                                                                                      task_dataframe["PointY"].to_numpy())
-                
-                # Computer Vel and Acc mean of the array
-                vel_mean = velocity.mean()
-                acc_mean = acceleration.mean()
-                
-                print(f"Num of points ({len(velocity)}) \n Velocity Mean: {vel_mean} \n Acceleration Mean: {acc_mean} \n")
-                
                 # Plot with Matplotlib
-                #preprocessing.create_array_plot(x, y)
+                # preprocessing.create_array_plot(task_dataframe["PointX"].to_numpy(), task_dataframe["PointY"].to_numpy())
                 
                 # Create image using points coordinates and pressure
-                preprocessing.create_image_from_array(task_dataframe["PointX"].to_numpy(), 
+                preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(), 
                                                       task_dataframe["PointY"].to_numpy(), 
-                                                      task_dataframe["Pressure"].to_numpy() )
+                                                      task_dataframe["Pressure"].to_numpy())
+                
+                # # Compute Speed and Acceleration from Points (x,y)
+                # velocity, acceleration = preprocessing.compute_speed_and_acceleration(task_dataframe["PointX"].to_numpy(),
+                #                                                                       task_dataframe["PointY"].to_numpy())
+                
+                # # Computer Vel and Acc mean of the array
+                # vel_mean = velocity.mean()
+                # acc_mean = acceleration.mean()
+                
+                # print(f"Num of points ({len(velocity)}) \n Velocity Mean: {vel_mean} \n Acceleration Mean: {acc_mean} \n")
+                
+                # task_dataframe["Velocity"] = pd.Series(velocity)
+                # task_dataframe["Acceleration"] = pd.Series(acceleration) 
 
+                print(task_dataframe)
             else:
                 break  
                
