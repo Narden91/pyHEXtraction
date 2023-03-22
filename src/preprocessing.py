@@ -2,9 +2,7 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
-import animation
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 from functools import wraps
 from time import time
 
@@ -29,7 +27,6 @@ Y_DIGITIZER = 16556
 
 WIDTH_IMAGE = 1280
 HEIGHT_IMAGE = 720
-
 
 
 def timing(f):
