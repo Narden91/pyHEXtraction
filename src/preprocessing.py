@@ -314,8 +314,8 @@ def create_image_from_data(x:np.array, y:np.array, pressure:np.array, background
             cv2.line(image, start, end, color_onair, thickness_onair)  
         
         # Show the draw process in the Window
-        # cv2.imshow(file_path, image)
-        # cv2.waitKey(1)
+        cv2.imshow(file_path, image)
+        cv2.waitKey(1)
     
     # Save the image
     saving_image(image, file_path, config)
@@ -365,7 +365,6 @@ def saving_image(image, original_filename:str, config) -> None:
 
 
 # Functions using Matplotlib 
-
 def compute_speed_and_acceleration(x:np.array, y:np.array):
     """
     It computes the speed and acceleration of the traits given its x and y coordinates

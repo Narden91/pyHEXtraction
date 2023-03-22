@@ -65,7 +65,7 @@ def main(config):
                 #task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
                 
                 # Plot on x-y axis 
-                preprocessing.task_plotting(task_dataframe)
+                # preprocessing.task_plotting(task_dataframe)
                 
                 #preprocessing.animation(task_dataframe["PointX"].to_numpy(), task_dataframe["PointY"].to_numpy())
                                 
