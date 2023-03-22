@@ -9,7 +9,8 @@ settings:
   data_source: data
   file_extension: .csv
   images_extension: .png
-  data_output: output
+  data_output: Output_image_folder
+  background_images_folder: Task_image_background
 
 
 hydra:  

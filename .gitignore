@@ -169,6 +169,6 @@ poetry.toml
 .history
 .ionide
 
-data/*
-
 ### Directories ###
+data/*
+Output_image_folder/*

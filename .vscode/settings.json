@@ -1,3 +1,4 @@
 {
-    "docwriter.progress.trackFunctions": false
+    "docwriter.progress.trackFunctions": false,
+    "python.analysis.typeCheckingMode": "off"
 }

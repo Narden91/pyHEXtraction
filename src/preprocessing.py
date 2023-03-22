@@ -2,25 +2,67 @@ import pandas as pd
 import numpy as np
 import cv2
 import os
+import animation
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from functools import wraps
+from time import time
 
 # GLOBAL VARIABLE
 # Wacom Device Clock (Hz)
 CLOCK = 200
+
+# Acquired Image dimensions
+WIDTH_ACQUIRED = 1280
+HEIGHT_ACQUIRED = 720
 
 # WACOM ONE DIGITIZER VALUES
 X_DIGITIZER = 29434
 Y_DIGITIZER = 16556 
 
 # DESIRED OUTPUT IMAGE RESOLUTION
-WIDTH_IMAGE = 1600
-HEIGHT_IMAGE = 900
+# WIDTH_IMAGE = 1600
+# HEIGHT_IMAGE = 900
 
 # WIDTH_IMAGE = 1920
 # HEIGHT_IMAGE = 1080
 
+WIDTH_IMAGE = 1280
+HEIGHT_IMAGE = 720
 
-def process_images_files(images_folder_path: str, image_extension: str):
+
+
+def timing(f):
+    """
+    @timing = Decorator
+    The `timing` function takes a function as an argument and returns a function that will print the
+    time it takes to run the function
+    
+    :param f: the function to be timed
+    :return: The function wrap is being returned.
+    """
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        start_time = time()
+        result = f(*args, **kwargs)
+        elapsed_time = time()
+        print(f'Function {f.__name__} took {elapsed_time-start_time:2.4f} seconds')
+        return result
+    return wrap
+
+
+def get_images_in_folder(images_folder_path: str, image_extension=".png") -> list:
+    
+    # Get alle the images in the folder
+    images_file_list = [f.path for f in os.scandir(images_folder_path) if f.is_file() and f.path.endswith(image_extension)]
+    
+    # Sort by filename
+    images_file_list = sorted(images_file_list, key = lambda x: len(x))
+    
+    return images_file_list
+    
+
+def process_images_files(images_folder_path: str, image_extension: str) -> None:
     """
     It takes a folder path and an image extension as input, and then it crops and resizes all the images
     in the folder
@@ -32,16 +74,16 @@ def process_images_files(images_folder_path: str, image_extension: str):
     """
     
     for image in images_folder_path:
-            # Get alle the images in the folder
-            images_file_list = [f.path for f in os.scandir(image) if f.is_file() and f.path.endswith(image_extension)]
+        # Get alle the images in the folder
+        images_file_list = [f.path for f in os.scandir(image) if f.is_file() and f.path.endswith(image_extension)]
+        
+        # Sort by filename
+        images_file_list = sorted(images_file_list, key = lambda x: len(x))
+                    
+        # Loop through the images and crop and resize them if they don't match the size 1920x1080
+        for file in images_file_list:
             
-            # Sort by filename
-            images_file_list = sorted(images_file_list, key = lambda x: len(x))
-                        
-            # Loop through the images and crop and resize them if they don't match the size 1920x1080
-            for file in images_file_list:
-                
-                crop_and_resize_image(file,file)
+            crop_and_resize_image(file,file)
 
 
 def crop_and_resize_image(source_path:str, destination_path:str) -> None:
@@ -54,82 +96,89 @@ def crop_and_resize_image(source_path:str, destination_path:str) -> None:
     :param destination_path: The path to the destination image
     :type destination_path: str
     """
-    # Read the image
-    img = cv2.imread(source_path)
-    
-    # Get image dimensions
-    height, width, channels = img.shape
-    
-    # print(f"Width: {width} \t Height: {height} \n")
-
-    if height != 1080 and width != 1920:   
-        # Crop the image to specified coordinates
-        cropped = img[0:720, 0:1280]
+    try:
+        # Read the image
+        img = cv2.imread(source_path)
         
-        # Resize the cropped image to specified dimensions
-        resized = cv2.resize(cropped, (1920, 1080))
-
-        # Save the resized image
-        cv2.imwrite(destination_path, resized)
-    else:
-        pass
+        # Get image dimensions
+        height, width, channels = img.shape
         
-   
+        # print(f"Width: {width} \t Height: {height} \n")
+
+        if height != HEIGHT_IMAGE and width != WIDTH_IMAGE:   
+            # Crop the image to specified coordinates
+            cropped = img[0:HEIGHT_ACQUIRED, 0:WIDTH_ACQUIRED]
+            
+            # Resize the cropped image to specified dimensions
+            resized = cv2.resize(cropped, (WIDTH_IMAGE, HEIGHT_IMAGE))
+
+            # Save the resized image
+            cv2.imwrite(destination_path, resized)
+        else:
+            pass
+    except FileNotFoundError:
+        print(f"File {source_path} NOT found!")
+        
+        
 def load_data_from_csv(file_csv: str) -> pd.DataFrame:
     """
     It reads the csv file line by line, separates the header from the rows, splits the header and rows
     by comma, removes the spaces, filters the desired values, creates a dataframe from the header and
     rows, pops the sequence, timestamp and PenId columns, and re-orders the dataframe columns
     
-    :param file_csv: str = 'C:/Users/user/Desktop/test.csv'
+    :param file_csv: str 
     :type file_csv: str
     :return: Nothing.
     """
-    # Read line by line the .csv file
-    with open(file_csv) as file_csv:
-        content = file_csv.readlines()
-    
-    # Separate Header and Rows
-    header = content[:1]
-    rows = content[1:]
-    
-    # Split the header and remove the spaces
-    header = [x.strip() for xs in header for x in xs.split(',')]
-    
-    # Remove unused features
-    header = header[0:5] + header[-7:]
-                            
-    # Split the rows content by comma and remove spaces 
-    rows = [row.replace(" ", "").strip().split(',', -1) for row in rows]
-    
-    # Filter only the desired values
-    rows = [row[0:5] + row[-7:] for row in rows]
-    
-    # Create dataframe from header and rows
-    task_data = pd.DataFrame(rows,columns=header)
-    
-    # Pop Sequence, Timestamp and PenId
-    header.pop(header.index('Sequence')) 
-    header.pop(header.index('Timestamp')) 
-    header.pop(header.index('PenId')) 
-    
-    # Re-order dataframe columns 
-    # df = df[header + ['Timestamp']]
-    task_data = task_data[header]
-    
-    # Cast columns values
-    task_data = task_data.astype({'PointX': 'int32', 'PointY': 'int32','Pressure': 'int32',
-                    'Rotation': 'int32', 'Azimuth': 'int32', 'Altitude': 'int32',
-                    'TiltX': 'int32', 'TiltY': 'int32'})
-    
-    # Insert time column at the end of the dataframe
-    # task_data["Time (msec)"] = task_data.index * (1/CLOCK)
-    
-    # Insert Time column at the beginning
-    task_data.insert(0, 'Time (msec)', task_data.index)
-    
-    task_data['Time (msec)'] = task_data['Time (msec)'] * (1/CLOCK) 
-
+    try:
+        # Read line by line the .csv file
+        with open(file_csv) as file_csv:
+            content = file_csv.readlines()
+        
+        # Separate Header and Rows
+        header = content[:1]
+        rows = content[1:]
+        
+        # Split the header and remove the spaces
+        header = [x.strip() for xs in header for x in xs.split(',')]
+        
+        # Remove unused features
+        header = header[0:5] + header[-7:]
+                                
+        # Split the rows content by comma and remove spaces 
+        rows = [row.replace(" ", "").strip().split(',', -1) for row in rows]
+        
+        # Filter only the desired values
+        rows = [row[0:5] + row[-7:] for row in rows]
+        
+        # Create dataframe from header and rows
+        task_data = pd.DataFrame(rows,columns=header)
+        
+        # Pop Sequence, Timestamp and PenId
+        header.pop(header.index('Sequence')) 
+        header.pop(header.index('Timestamp')) 
+        header.pop(header.index('PenId')) 
+        
+        # Re-order dataframe columns 
+        # df = df[header + ['Timestamp']]
+        task_data = task_data[header]
+        
+        # Cast columns values
+        task_data = task_data.astype({'PointX': 'int32', 'PointY': 'int32','Pressure': 'int32',
+                        'Rotation': 'int32', 'Azimuth': 'int32', 'Altitude': 'int32',
+                        'TiltX': 'int32', 'TiltY': 'int32'})
+        
+        # Insert time column at the end of the dataframe
+        # task_data["Time (s)"] = task_data.index * (1/CLOCK)
+        
+        # Insert Time column at the beginning
+        task_data.insert(0, 'Time (s)', task_data.index)
+        
+        task_data['Time (s)'] = task_data['Time (s)'] * (1/CLOCK) 
+        
+    except FileNotFoundError:
+        print("File not found")
+        
     return task_data
 
 
@@ -158,10 +207,10 @@ def points_type_filtering(df:pd.DataFrame, points_type:str = "onpaper") -> pd.Da
     return df
 
 
-def coordinates_manipulation(data:pd.DataFrame) :
+def coordinates_manipulation(data:pd.DataFrame) -> pd.DataFrame:
     """
     It takes a dataframe of points, corrects the origin, filters the points, scales the points, and
-    transforms the points to the image origin
+    transforms the points to the image origin -> (0,0) to top-left. 
     
     :param data: the dataframe containing the data
     :type data: pd.DataFrame
@@ -189,33 +238,37 @@ def coordinates_manipulation(data:pd.DataFrame) :
     data["PointY"] = y_coordinates_array.astype(int)
     
     return data
-    
-    
-def create_array_plot(x:np.array, y:np.array) -> None:
-    """
-    It takes two arrays, x and y, and plots them on a graph
-    
-    :param x: the x-axis values
-    :type x: np.array
-    :param y: np.array = The y-axis values
-    :type y: np.array
-    :return: None
-    """
-    
-    plt.rcParams["figure.figsize"] = [7.50, 3.50]
-    plt.rcParams["figure.autolayout"] = True
-    
-    plt.title("Task Plot")
-    plt.plot(x, y, color="black")
 
-    plt.xlim([0, WIDTH_IMAGE])
-    plt.ylim([0, HEIGHT_IMAGE])
-    plt.show()
+
+def resize_with_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
+    """
+    If you want to resize an image to a specific width, then pass the width as the first argument and
+    the height as the second argument. If you want to resize an image to a specific height, then pass
+    the height as the first argument and the width as the second argument
     
-    return None
-        
-    
-def create_image_from_data(x:np.array, y:np.array, pressure:np.array) -> None:
+    :param image: The image we want to resize
+    :param width: The width of the resized image
+    :param height: The height we would like the image to be resized to
+    :param inter: The interpolation method. By default, it is cv2.INTER_AREA for shrinking and
+    cv2.INTER_CUBIC (slow) & cv2.INTER_LINEAR for zooming
+    :return: The image is being resized to the dimensions of the width and height.
+    """
+    dim = None
+    (h, w) = image.shape[:2]
+
+    if width is None and height is None:
+        return image
+    if width is None:
+        r = height / float(h)
+        dim = (int(w * r), height)
+    else:
+        r = width / float(w)
+        dim = (width, int(h * r))
+
+    return cv2.resize(image, dim, interpolation=inter)
+ 
+
+def create_image_from_data(x:np.array, y:np.array, pressure:np.array, background_image:str, file_path: str, config) -> None:
     """
     > It takes in 3 arrays, and creates an image from them
     
@@ -235,36 +288,83 @@ def create_image_from_data(x:np.array, y:np.array, pressure:np.array) -> None:
     thickness_onair = 1
     color_onair = [0,255,0]
     
-    # Create Image Matrix
-    image = np.zeros((HEIGHT_IMAGE, WIDTH_IMAGE, 3), np.uint8)
+    # # Create Image Matrix 
+    # image = np.zeros((HEIGHT_IMAGE, WIDTH_IMAGE, 3), np.uint8)
     
-    # Fill the Image with white color
-    image.fill(255)
+    # # Fill the Image with white color
+    # image.fill(255)
+    
+    # Read Background Image
+    image = cv2.imread(background_image)
+    
+    image = resize_with_aspect_ratio(image, width=WIDTH_ACQUIRED)
     
     # Merge 2 array 
     points = np.column_stack((x, y))
-    
+        
     # Loop through all the points for drawing on the canvas
     for i in range(1, len(points)):
         start = tuple(points[i - 1])
         end = tuple(points[i])
         
+        # differentiate between onair and onpaper points
         if pressure[i] != 0:
             cv2.line(image, start, end, color, thickness)
         else:
             cv2.line(image, start, end, color_onair, thickness_onair)  
-   
-    # Show the image in a new Window
-    cv2.imshow("Image", image)
-    cv2.waitKey(0)
+        
+        # Show the draw process in the Window
+        # cv2.imshow(file_path, image)
+        # cv2.waitKey(1)
     
-    # Save locally the image created
-    filename = 'savedImage.jpg'
-    
-    cv2.imwrite(filename, image)
+    # Save the image
+    saving_image(image, file_path, config)
     
     return None
 
+
+def saving_image(image, original_filename:str, config) -> None:
+    """
+    It takes an image and a filename as input, and saves the image in the output folder with the same
+    name as the original file
+    
+    :param image: the image to be saved
+    :param original_filename: The full path to the original image
+    :type original_filename: str
+    :return: None
+    """
+    
+    # Check if exists OUTPUT_FOLDER
+    if not os.path.exists(config.settings.data_output):
+        os.makedirs(config.settings.data_output)
+    
+    # Extract the filename from the complete path
+    basename = os.path.splitext(os.path.basename(original_filename))[0]
+    
+    # obtain Task_#
+    basename = basename.split('_')[0]
+    
+    # Retrieve the original folder name of the task
+    original_subfolder_name = os.path.split(os.path.dirname(original_filename))[1]
+    
+    # Create if not exists the subfolder of the tasks
+    sub_dir_output = os.path.join(config.settings.data_output, original_subfolder_name)
+    
+    if not os.path.exists(sub_dir_output):
+        os.makedirs(sub_dir_output)
+    
+    # create the filename based on the image format desired
+    filename =  basename + config.settings.images_extension
+    
+    # Join the strings to obtain the complete path to save the image
+    complete_path = os.path.join(sub_dir_output, filename)
+    
+    cv2.imwrite(complete_path, image)
+    
+    return None
+
+
+# Functions using Matplotlib 
 
 def compute_speed_and_acceleration(x:np.array, y:np.array):
     """
@@ -295,3 +395,55 @@ def compute_speed_and_acceleration(x:np.array, y:np.array):
     velocity = np.append(velocity, 0)
         
     return velocity , acceleration
+
+
+def task_plotting(data_source: pd.DataFrame) -> None:
+    """
+    It takes two arrays, x and y, and plots them on a graph
+    
+    :param x: the x-axis values
+    :type x: np.array
+    :param y: np.array = The y-axis values
+    :type y: np.array
+    :return: None
+    """
+    
+    data = data_source.copy()
+    
+    # Correct the origin mismatching from the raw data origin system
+    data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
+    
+    # Filter Points from dataframe
+    x_coordinates_array = data["PointX"].to_numpy()
+    y_coordinates_array = data["PointY"].to_numpy()
+        
+    # Scale the arrays (Point_x : X_digitizer = Point_x_image : WIDTH_des) -> Point_x_image   
+    x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
+    y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
+        
+    # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to Cartesian Coordinates Origin (bottom-left)
+    x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
+    y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
+    
+    # Assign new x,y values
+    data["PointX"] = x_coordinates_array.astype(int)
+    data["PointY"] = y_coordinates_array.astype(int)
+    
+    # Separate onair and onpaper points
+    df_onair = data.loc[data["Pressure"] == 0].reset_index(drop=True)
+    df_onpaper = data.loc[data["Pressure"] != 0].reset_index(drop=True)
+    
+    plt.rcParams["figure.figsize"] = [7.50, 3.50]
+    plt.rcParams["figure.autolayout"] = True
+    
+    plt.title("Task Plot")
+    plt.plot(df_onpaper["PointX"].to_numpy(), df_onpaper["PointY"].to_numpy(), color="black", linewidth=2)
+    plt.plot(df_onair["PointX"].to_numpy(), df_onair["PointY"].to_numpy(), color="green", linewidth=0.8)
+    
+    # plt.plot(x, y, color="black")
+
+    plt.xlim([0, WIDTH_IMAGE])
+    plt.ylim([0, HEIGHT_IMAGE])
+    plt.show()
+    
+    return None
