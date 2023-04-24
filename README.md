@@ -65,3 +65,8 @@ python -m pip freeze > requirements.txt
     ```
     env\Scripts\deactivate
     ```
+
+## Notes
+On Windows:
+Make sure to have Screen Scale at 100% instead of 120% or other values,
+otherwise the task rendering on screen won't fit.

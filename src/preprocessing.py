@@ -22,11 +22,9 @@ Y_DIGITIZER = 16556
 # WIDTH_IMAGE = 1600
 # HEIGHT_IMAGE = 900
 
-# WIDTH_IMAGE = 1920
-# HEIGHT_IMAGE = 1080
+WIDTH_IMAGE = 1920
+HEIGHT_IMAGE = 1080
 
-WIDTH_IMAGE = 1280
-HEIGHT_IMAGE = 720
 
 
 def timing(f):
@@ -50,7 +48,7 @@ def timing(f):
 
 def get_images_in_folder(images_folder_path: str, image_extension=".png") -> list:
     
-    # Get alle the images in the folder
+    # Get all the images in the folder
     images_file_list = [f.path for f in os.scandir(images_folder_path) if f.is_file() and f.path.endswith(image_extension)]
     
     # Sort by filename
@@ -267,7 +265,7 @@ def resize_with_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_ARE
 
 def create_image_from_data(x:np.array, y:np.array, pressure:np.array, background_image:str, file_path: str, config) -> None:
     """
-    > It takes in 3 arrays, and creates an image from them
+    > It takes in 3 arrays, and creates the task from the data
     
     :param x: x-coordinates of the points
     :type x: np.array
@@ -285,16 +283,57 @@ def create_image_from_data(x:np.array, y:np.array, pressure:np.array, background
     thickness_onair = 1
     color_onair = [0,255,0]
     
-    # # Create Image Matrix 
-    # image = np.zeros((HEIGHT_IMAGE, WIDTH_IMAGE, 3), np.uint8)
-    
-    # # Fill the Image with white color
-    # image.fill(255)
-    
     # Read Background Image
     image = cv2.imread(background_image)
     
-    image = resize_with_aspect_ratio(image, width=WIDTH_ACQUIRED)
+    # Merge 2 array 
+    points = np.column_stack((x, y))
+        
+    # Loop through all the points for drawing on the canvas
+    for i in range(1, len(points)):
+        start = tuple(points[i - 1])
+        end = tuple(points[i])
+        
+        # differentiate between onair and onpaper points
+        if pressure[i] != 0:
+            cv2.line(image, start, end, color, thickness)
+        else:
+            cv2.line(image, start, end, color_onair, thickness_onair)  
+        
+    # Show the draw process in the Window
+    cv2.imshow(file_path, image)
+        
+    cv2.waitKey(0)
+    
+    # Save the image
+    saving_image(image, file_path, config)
+    
+    return None
+
+
+def create_gif_from_data(x:np.array, y:np.array, pressure:np.array, background_image:str, file_path: str, config) -> None:
+    """
+    > It takes in 3 arrays, and creates a video-like from them
+    > Showing how the tasks have been built
+    
+    :param x: x-coordinates of the points
+    :type x: np.array
+    :param y: the y-coordinates of the points
+    :type y: np.array
+    :param pressure: the pressure of the pen on the tablet
+    :type pressure: np.array
+    """
+    
+    # Settings for onpaper
+    thickness = 2
+    color = [0,0,0]
+    
+    # Settings for on air
+    thickness_onair = 1
+    color_onair = [0,255,0]
+    
+    # Read Background Image
+    image = cv2.imread(background_image)
     
     # Merge 2 array 
     points = np.column_stack((x, y))
@@ -312,7 +351,12 @@ def create_image_from_data(x:np.array, y:np.array, pressure:np.array, background
         
         # Show the draw process in the Window
         cv2.imshow(file_path, image)
-        cv2.waitKey(1)
+        
+        # Pause the draw once finished
+        if i == len(points)-1:
+            cv2.waitKey(0)
+        else:
+            cv2.waitKey(1)
     
     # Save the image
     saving_image(image, file_path, config)
@@ -393,53 +437,53 @@ def compute_speed_and_acceleration(x:np.array, y:np.array):
     return velocity , acceleration
 
 
-def task_plotting(data_source: pd.DataFrame) -> None:
-    """
-    It takes two arrays, x and y, and plots them on a graph
+# def task_plotting(data_source: pd.DataFrame) -> None:
+#     """
+#     It takes two arrays, x and y, and plots them on a graph
     
-    :param x: the x-axis values
-    :type x: np.array
-    :param y: np.array = The y-axis values
-    :type y: np.array
-    :return: None
-    """
+#     :param x: the x-axis values
+#     :type x: np.array
+#     :param y: np.array = The y-axis values
+#     :type y: np.array
+#     :return: None
+#     """
     
-    data = data_source.copy()
+#     data = data_source.copy()
     
-    # Correct the origin mismatching from the raw data origin system
-    data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
+#     # Correct the origin mismatching from the raw data origin system
+#     data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
     
-    # Filter Points from dataframe
-    x_coordinates_array = data["PointX"].to_numpy()
-    y_coordinates_array = data["PointY"].to_numpy()
+#     # Filter Points from dataframe
+#     x_coordinates_array = data["PointX"].to_numpy()
+#     y_coordinates_array = data["PointY"].to_numpy()
         
-    # Scale the arrays (Point_x : X_digitizer = Point_x_image : WIDTH_des) -> Point_x_image   
-    x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
-    y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
+#     # Scale the arrays (Point_x : X_digitizer = Point_x_image : WIDTH_des) -> Point_x_image   
+#     x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
+#     y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
         
-    # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to Cartesian Coordinates Origin (bottom-left)
-    x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
-    y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
+#     # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to Cartesian Coordinates Origin (bottom-left)
+#     x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
+#     y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
     
-    # Assign new x,y values
-    data["PointX"] = x_coordinates_array.astype(int)
-    data["PointY"] = y_coordinates_array.astype(int)
+#     # Assign new x,y values
+#     data["PointX"] = x_coordinates_array.astype(int)
+#     data["PointY"] = y_coordinates_array.astype(int)
     
-    # Separate onair and onpaper points
-    df_onair = data.loc[data["Pressure"] == 0].reset_index(drop=True)
-    df_onpaper = data.loc[data["Pressure"] != 0].reset_index(drop=True)
+#     # Separate onair and onpaper points
+#     df_onair = data.loc[data["Pressure"] == 0].reset_index(drop=True)
+#     df_onpaper = data.loc[data["Pressure"] != 0].reset_index(drop=True)
     
-    plt.rcParams["figure.figsize"] = [7.50, 3.50]
-    plt.rcParams["figure.autolayout"] = True
+#     plt.rcParams["figure.figsize"] = [7.50, 3.50]
+#     plt.rcParams["figure.autolayout"] = True
     
-    plt.title("Task Plot")
-    plt.plot(df_onpaper["PointX"].to_numpy(), df_onpaper["PointY"].to_numpy(), color="black", linewidth=2)
-    plt.plot(df_onair["PointX"].to_numpy(), df_onair["PointY"].to_numpy(), color="green", linewidth=0.8)
+#     plt.title("Task Plot")
+#     plt.plot(df_onpaper["PointX"].to_numpy(), df_onpaper["PointY"].to_numpy(), color="black", linewidth=2)
+#     plt.plot(df_onair["PointX"].to_numpy(), df_onair["PointY"].to_numpy(), color="green", linewidth=0.8)
     
-    # plt.plot(x, y, color="black")
+#     # plt.plot(x, y, color="black")
 
-    plt.xlim([0, WIDTH_IMAGE])
-    plt.ylim([0, HEIGHT_IMAGE])
-    plt.show()
+#     plt.xlim([0, WIDTH_IMAGE])
+#     plt.ylim([0, HEIGHT_IMAGE])
+#     plt.show()
     
-    return None
+#     return None

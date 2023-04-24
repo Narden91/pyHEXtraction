@@ -6,6 +6,7 @@ import hydra
 import os
 import pandas as pd
 import preprocessing 
+import feature_extraction_module
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
@@ -41,7 +42,7 @@ def main(config):
     for folder in folders_in_data:
         
         # list of the images file in the subject folder
-        images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
+        # images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
         
         # Process the images in Images folder if necessary
         # preprocessing.process_images_files(images_folder,config.settings.images_extension)
@@ -56,29 +57,35 @@ def main(config):
         for task_number, (task, bck_image) in enumerate(zip(task_file_list, background_images_list)):
             
             # Debug compute only the first "n" file in the folder
-            if task_number == 1:     
+            if task_number == 1:
+                 
                                 
                 # Create the dataframe from the csv data
                 task_dataframe = preprocessing.load_data_from_csv(task)
                                     
                 # Filter the dataframe by the type of points (onair / onpaper)
-                #task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
-                
-                # Plot on x-y axis 
-                # preprocessing.task_plotting(task_dataframe)
-                
-                #preprocessing.animation(task_dataframe["PointX"].to_numpy(), task_dataframe["PointY"].to_numpy())
-                                
+                # task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
+                         
                 # Correct the coordinates system from Digitizer origin -> Image Standard origin
                 task_dataframe = preprocessing.coordinates_manipulation(task_dataframe)
+                
+                # Show image of the current task created from the csv
+                # preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(), 
+                #                                      task_dataframe["PointY"].to_numpy(), 
+                #                                      task_dataframe["Pressure"].to_numpy(),
+                #                                      bck_image, task, config)
+                
+                # Show image-video of the current task created from the csv
+                # preprocessing.create_gif_from_data(task_dataframe["PointX"].to_numpy(), 
+                #                                      task_dataframe["PointY"].to_numpy(), 
+                #                                      task_dataframe["Pressure"].to_numpy(),
+                #                                      bck_image, task, config)
 
-                # Create image from the data
-                preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(), 
-                                                     task_dataframe["PointY"].to_numpy(), 
-                                                     task_dataframe["Pressure"].to_numpy(),
-                                                     bck_image, task, config)
-
-                # print(f"Final Dataframe: \n {task_dataframe} \n")
+                # Print the csv data of the current task
+                print(f"[+] Task Preprocessed: \n {task_dataframe} \n")
+                
+                print(f"[+] Starting Feature Extraction \n")
+                
             # else:
             #     break  
                
@@ -86,5 +93,4 @@ def main(config):
 
 if __name__== '__main__':
     main()
-    
     
