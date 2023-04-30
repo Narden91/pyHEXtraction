@@ -84,6 +84,9 @@ def main(config):
 
                 print(f"[+] Starting Feature Extraction \n")
 
+                # Convert the points to strokes
+                task_dataframe = feature_extraction_module.convert_from_points_to_strokes(task_dataframe)
+
             # else:
             #     break  
 

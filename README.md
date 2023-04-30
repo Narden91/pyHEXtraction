@@ -86,6 +86,8 @@ After creating the virtual environment, you can run the project on PyCharm.
 4. Add the changes to the staging area
     ```
     git add <file_name>
+    or to add all the files:
+    git add .
     ```
 5. Commit the changes
     ```
@@ -105,6 +107,11 @@ After creating the virtual environment, you can run the project on PyCharm.
     ```
       git push origin --delete <branch_name>
     ```
+
+# Current Workings
+- [ ] Pass from Points Dataframe to &rarr; Stroke Dataframe
+- [ ] Feature
+
 
 ## License
 This project is licensed under the @Università degli Studi di Cassino e del Lazio Meridionale
