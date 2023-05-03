@@ -110,7 +110,7 @@ After creating the virtual environment, you can run the project on PyCharm.
 
 # Current Workings
 - [ ] Pass from Points Dataframe to &rarr; Stroke Dataframe
-- [ ] Feature
+- [ ] Feature 1: Stroke Length
 
 
 ## License
