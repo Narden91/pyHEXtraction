@@ -58,6 +58,9 @@ def main(config):
 
             # Debug compute only the first "n" file in the folder
             if task_number == 1:
+                # Min-Max X: 0 - 29434
+                # Min-Max Y: 0 - 16556
+
                 # Create the dataframe from the csv data
                 task_dataframe = preprocessing.load_data_from_csv(task)
 
@@ -68,8 +71,8 @@ def main(config):
                 task_dataframe = preprocessing.coordinates_manipulation(task_dataframe)
 
                 # Show image of the current task created from the csv
-                # preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(), 
-                #                                      task_dataframe["PointY"].to_numpy(), 
+                # preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(),
+                #                                      task_dataframe["PointY"].to_numpy(),
                 #                                      task_dataframe["Pressure"].to_numpy(),
                 #                                      bck_image, task, config)
 
@@ -80,12 +83,19 @@ def main(config):
                 #                                      bck_image, task, config)
 
                 # Print the csv data of the current task
-                print(f"[+] Task Preprocessed: \n {task_dataframe} \n")
+                print(f"[+] Task Preprocessed: \n {task_dataframe.head().to_string()} \n")
+
+                # Print the minimum and maximum values of the task dataframe' s column X and Y
+                # print(f"[+] Task Min and Max Values: \n {task_dataframe['PointX'].min()} \n "
+                #       f"{task_dataframe['PointX'].max()} \n")
 
                 print(f"[+] Starting Feature Extraction \n")
 
-                # Convert the points to strokes
-                task_dataframe = feature_extraction_module.convert_from_points_to_strokes(task_dataframe)
+                # Manipulate the dataframe to be ready for HandwritingSample library
+                task_dataframe = feature_extraction_module.convert_to_HandwritingSample_library(task_dataframe)
+
+                # Plot the data using the HandwritingSample library
+                feature_extraction_module.plot_using_HandwritingSample_library(task_dataframe)
 
             # else:
             #     break  
