@@ -56,6 +56,10 @@ def convert_to_HandwritingSample_library(data_source: pd.DataFrame) -> pd.DataFr
     # Rename the columns
     data_source.columns = ['x', 'y', 'time', 'pen_status', 'azimuth', 'tilt', 'pressure']
 
+    # Absolute value of the tilt and azimuth
+    data_source['tilt'] = data_source['tilt'].abs()
+    data_source['azimuth'] = data_source['azimuth'].abs()
+
     return data_source
 
 
