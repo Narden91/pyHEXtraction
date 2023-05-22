@@ -13,11 +13,11 @@ import feature_extraction_module
 def main(config):
     # Check data directory
     try:
-        # If directory has not yet been created
+        # If a directory has not yet been created
         os.makedirs(config.settings.data_source)
 
         sys.exit("Empty directory data")
-    except OSError as excep:
+    except OSError:
         if not os.listdir(config.settings.data_source):
             sys.exit("Empty directory data")
         else:
@@ -30,7 +30,7 @@ def main(config):
         os.makedirs(config.settings.background_images_folder)
 
         sys.exit("Empty background images folder")
-    except OSError as excep:
+    except OSError:
         if not os.listdir(config.settings.background_images_folder):
             sys.exit("Empty background images folder")
         else:
@@ -39,8 +39,7 @@ def main(config):
 
     # Iterate over the folders in data
     for folder in folders_in_data:
-
-        # list of the images file in the subject folder
+        # list of the image file in the subject folder
         # images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
 
         # Process the images in Images folder if necessary
@@ -55,12 +54,8 @@ def main(config):
 
         # Iterate over the task file in the data folder and the background image
         for task_number, (task, bck_image) in enumerate(zip(task_file_list, background_images_list)):
-
-            # Debug compute only the first "n" file in the folder
+            # Debug: computes only the first "n" file in the folder
             if task_number == 1:
-                # Min-Max X: 0 - 29434
-                # Min-Max Y: 0 - 16556
-
                 # Create the dataframe from the csv data
                 task_dataframe = preprocessing.load_data_from_csv(task)
 
@@ -84,12 +79,6 @@ def main(config):
 
                 # Print the csv data of the current task
                 print(f"[+] Task Preprocessed: \n {task_dataframe.head().to_string()} \n")
-
-                # Print the minimum and maximum values of the task dataframe' s column X and Y
-                # print(f"[+] Task Min and Max Values: \n {task_dataframe['PointX'].min()} \n "
-                #       f"{task_dataframe['PointX'].max()} \n")
-
-                print(f"[+] Starting Feature Extraction \n")
 
                 # Manipulate the dataframe to be ready for HandwritingSample library
                 task_dataframe = feature_extraction_module.convert_to_HandwritingSample_library(task_dataframe)

@@ -216,7 +216,7 @@ def coordinates_manipulation(data: pd.DataFrame) -> pd.DataFrame:
     # For plotting -> PointY must be uncommented
     # For Image -> PointY must be commented
     # data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
-    # data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
+    data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
 
     # Filter Points from dataframe
     x_coordinates_array = data["PointX"].to_numpy()
@@ -279,14 +279,21 @@ def resize_with_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_ARE
 def create_image_from_data(x: np.array, y: np.array, pressure: np.array, background_image: str, file_path: str,
                            config) -> None:
     """
-    > It takes in 3 arrays, and creates the task from the data
+    It takes 3 arrays and a string as input, and returns an image of the drawing.
 
-    :param x: x-coordinates of the points
+    :param x: The x coordinates of the points
     :type x: np.array
-    :param y: the y-coordinates of the points
+    :param y: The y coordinates of the points
     :type y: np.array
-    :param pressure: the pressure of the pen on the tablet
+    :param pressure: The pressure of the points
     :type pressure: np.array
+    :param background_image: The path of the background image
+    :type background_image: str
+    :param file_path: The path of the file
+    :type file_path: str
+    :param config: The configuration file
+    :type config: dict
+    :return: None
     """
 
     # Settings for onpaper
@@ -331,12 +338,19 @@ def create_gif_from_data(x: np.array, y: np.array, pressure: np.array, backgroun
     > It takes in 3 arrays, and creates a video-like from them
     > Showing how the tasks have been built
     
-    :param x: x-coordinates of the points
+    :param x: The x coordinates of the points
     :type x: np.array
-    :param y: the y-coordinates of the points
+    :param y: The y coordinates of the points
     :type y: np.array
-    :param pressure: the pressure of the pen on the tablet
+    :param pressure: The pressure of the points
     :type pressure: np.array
+    :param background_image: The path of the background image
+    :type background_image: str
+    :param file_path: The path of the file
+    :type file_path: str
+    :param config: The configuration file
+    :type config: dict
+    :return: None
     """
 
     # Settings for onpaper
@@ -420,83 +434,4 @@ def saving_image(image, original_filename: str, config) -> None:
     return None
 
 
-# Functions using Matplotlib 
-def compute_speed_and_acceleration(x: np.array, y: np.array):
-    """
-    It computes the speed and acceleration of the traits given its x and y coordinates
-    
-    :param x: the x-coordinates of the points
-    :type x: np.array
-    :param y: the y-coordinates of the trajectory
-    :type y: np.array
-    :return: the speed and acceleration of the object.
-    """
 
-    #  Calculate the n-th discrete difference along the given axis
-    dx = np.diff(x)
-    dy = np.diff(y)
-    dt = np.diff(np.arange(len(x)))
-
-    # Velocity
-    velocity = np.sqrt(dx ** 2 + dy ** 2) / dt
-
-    dv = np.diff(velocity)
-
-    # Acceleration
-    acceleration = dv / dt[:-1]
-    acceleration = np.append(acceleration, 0)
-    acceleration = np.append(acceleration, 0)
-    velocity = np.append(velocity, 0)
-
-    return velocity, acceleration
-
-# def task_plotting(data_source: pd.DataFrame) -> None:
-#     """
-#     It takes two arrays, x and y, and plots them on a graph
-
-#     :param x: the x-axis values
-#     :type x: np.array
-#     :param y: np.array = The y-axis values
-#     :type y: np.array
-#     :return: None
-#     """
-
-#     data = data_source.copy()
-
-#     # Correct the origin mismatching from the raw data origin system
-#     data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
-
-#     # Filter Points from dataframe
-#     x_coordinates_array = data["PointX"].to_numpy()
-#     y_coordinates_array = data["PointY"].to_numpy()
-
-#     # Scale the arrays (Point_x : X_digitizer = Point_x_image : WIDTH_des) -> Point_x_image   
-#     x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
-#     y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
-
-#     # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to Cartesian Coordinates Origin (bottom-left)
-#     x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
-#     y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
-
-#     # Assign new x,y values
-#     data["PointX"] = x_coordinates_array.astype(int)
-#     data["PointY"] = y_coordinates_array.astype(int)
-
-#     # Separate onair and onpaper points
-#     df_onair = data.loc[data["Pressure"] == 0].reset_index(drop=True)
-#     df_onpaper = data.loc[data["Pressure"] != 0].reset_index(drop=True)
-
-#     plt.rcParams["figure.figsize"] = [7.50, 3.50]
-#     plt.rcParams["figure.autolayout"] = True
-
-#     plt.title("Task Plot")
-#     plt.plot(df_onpaper["PointX"].to_numpy(), df_onpaper["PointY"].to_numpy(), color="black", linewidth=2)
-#     plt.plot(df_onair["PointX"].to_numpy(), df_onair["PointY"].to_numpy(), color="green", linewidth=0.8)
-
-#     # plt.plot(x, y, color="black")
-
-#     plt.xlim([0, WIDTH_IMAGE])
-#     plt.ylim([0, HEIGHT_IMAGE])
-#     plt.show()
-
-#     return None
