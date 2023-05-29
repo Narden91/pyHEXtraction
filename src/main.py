@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import preprocessing
 import feature_extraction_module
+from handwriting_features.features import HandwritingFeatures
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
@@ -83,8 +84,14 @@ def main(config):
                 # Manipulate the dataframe to be ready for HandwritingSample library
                 task_dataframe = feature_extraction_module.convert_to_HandwritingSample_library(task_dataframe)
 
-                # Plot the data using the HandwritingSample library
-                feature_extraction_module.plot_using_HandwritingSample_library(task_dataframe)
+                # Get the strokes using the HandwritingSample library
+                stroke_list = feature_extraction_module.get_strokes_from_data(task_dataframe)
+
+                # Extract the features from the strokes
+                feature_dataframe = feature_extraction_module.get_stroke_features(stroke_list)
+
+                # Print the features extracted from the current task
+                print(f"[+] Task Features: \n {feature_dataframe.head().to_string()} \n")
 
             # else:
             #     break  
