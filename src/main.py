@@ -15,11 +15,14 @@ def main(config):
     # Check data directory and retrieve data
     folders_in_data, background_images_list = data_handler.check_directories_and_load_data(config)
 
-    # Load the anagrafica file
-    # anagrafica_list = data_handler.load_anagrafica(folders_in_data[0])
-
     # Iterate over the folders in data
     for folder in folders_in_data:
+        # Load the anagrafica file
+        anagrafica_file = data_handler.load_anagrafica(folder)
+
+        # Read the anagrafica file
+        anagrafica_data = data_handler.read_anagrafica(anagrafica_file)
+
         # list of the image file in the subject folder
         # images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
 
@@ -73,11 +76,8 @@ def main(config):
                 # Extract the features from the strokes
                 feature_dataframe = feature_extraction_module.get_stroke_features(stroke_list)
 
-                # Print the features extracted from the current task
-                print(f"[+] Task {task_number + 1} extracted features: \n {feature_dataframe.to_string()} \n")
-
                 # Save the features extracted from the current task
-                data_handler.save_data_to_csv(feature_dataframe, task_number + 1, folder, task, config)
+                data_handler.save_data_to_csv(feature_dataframe, task_number + 1, folder, task, anagrafica_data, config)
 
             # else:
             #     break

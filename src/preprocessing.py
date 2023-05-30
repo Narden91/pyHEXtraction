@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 from functools import wraps
 from time import time
+from datetime import datetime
 
 # GLOBAL VARIABLE
 # Wacom Device Clock (Hz)
@@ -31,7 +32,7 @@ def timing(f):
     @timing = Decorator
     The `timing` function takes a function as an argument and returns a function that will print the
     time it takes to run the function
-    
+
     :param f: the function to be timed
     :return: The function wrap is being returned.
     """
@@ -45,6 +46,32 @@ def timing(f):
         return result
 
     return wrap
+
+
+def calculate_age(date_string):
+    """
+    The `calculate_age` function takes a date string as an argument and returns the age of the person
+    :param date_string: the date string to be converted
+    :return: the age of the person
+    """
+    # Convert the date string to a datetime object
+    date_format = "%d/%m/%Y"
+    birth_date = datetime.strptime(date_string, date_format)
+
+    # Get the current date
+    current_date = datetime.now()
+
+    # Calculate the difference between the current date and the birthdate
+    age = current_date.year - birth_date.year
+
+    # Adjust the age if the birthday hasn't happened yet this year
+    if (
+        birth_date.month > current_date.month
+        or (birth_date.month == current_date.month and birth_date.day > current_date.day)
+    ):
+        age -= 1
+
+    return age
 
 
 def get_images_in_folder(images_folder_path: str, image_extension=".png") -> list:

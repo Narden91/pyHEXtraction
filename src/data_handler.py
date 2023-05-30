@@ -1,4 +1,7 @@
 import os
+
+import pandas as pd
+
 import preprocessing
 import sys
 
@@ -51,13 +54,49 @@ def load_anagrafica(folder):
         return anagrafica_list[0]
 
 
-def save_data_to_csv(dataframe, task_number, folder, filename, config):
+def read_anagrafica(anagrafica_file):
+    """
+    Read the anagrafica text file row by row
+    :param anagrafica_file: path of the anagrafica file
+    :return: a list of lists containing the anagrafica data
+    """
+
+    try:
+        # Open the anagrafica file
+        with open(anagrafica_file, "r") as f:
+            # Read the file row by row
+            anagrafica_data = f.readlines()
+
+        # get the subject sex from the fourth row after the string Sesso:
+        subject_gender = anagrafica_data[3].split(":")[1].strip()
+
+        # get the subject date of birth from the fifth row after the string Data di nascita:
+        subject_date_of_birth = anagrafica_data[4].split(":")[1].strip()
+
+        # get the subject age given the date of birth by subtracting the current year
+        subject_age = preprocessing.calculate_age(subject_date_of_birth)
+
+        # get the subject dominant hand from the sixth row after the string Mano dominante:
+        subject_dominant_hand = anagrafica_data[5].split(":")[1].strip()
+
+        # Aggregate all the data in a dictionary
+        anagrafica_data = {"Gender": subject_gender,
+                           "Age": subject_age,
+                           "Dominant_Hand": subject_dominant_hand}
+
+        return anagrafica_data
+    except OSError:
+        raise Exception(f"Error while reading: {anagrafica_file} file")
+
+
+def save_data_to_csv(dataframe, task_number, folder, filename, anagrafica_dict, config):
     """
     Save the dataframe to csv
     :param dataframe: dataframe to save
     :param task_number: number of the task
     :param folder: folder in which save the csv
     :param filename: name of the csv file
+    :param anagrafica_dict: dictionary containing the anagrafica data
     :param config: config file
     :return: None
     """
@@ -74,11 +113,8 @@ def save_data_to_csv(dataframe, task_number, folder, filename, config):
     # Get Subject number (CRC_SUBJECT_001 -> 1)
     subject_number = int(folder.split("_")[2])
 
-    # Add a column with the subject number at the beginning of the dataframe
-    dataframe.insert(0, "Subject", subject_number)
-
-    # Add a column with the task number at the end of the dataframe
-    dataframe.insert(len(dataframe.columns), "Task", task_number)
+    # Add additional information to the dataframe
+    dataframe = add_personal_info_to_dataframe(dataframe, subject_number, anagrafica_dict, task_number)
 
     task_path = ""
 
@@ -98,6 +134,30 @@ def save_data_to_csv(dataframe, task_number, folder, filename, config):
     try:
         print(f"[+] Dataframe saved: \n {dataframe.to_string()} \n")
         # Save the dataframe to csv
-        dataframe.to_csv(task_path + "/" + filename , index=False)
+        # dataframe.to_csv(task_path + "/" + filename, index=False)
     except OSError:
         raise Exception(f"Error while saving: {filename} file")
+
+
+def add_personal_info_to_dataframe(dataframe: pd.DataFrame, id_subject: int, anagrafica_dict: dict, task_number: int):
+    """
+    Add personal information to the dataframe
+    :param dataframe: dataframe to which add the personal information
+    :param id_subject: id of the subject
+    :param anagrafica_dict: dictionary containing the anagrafica data
+    :param task_number: task number
+    :return: pd.DataFrame
+    """
+
+    # Add a column with the subject number at the beginning of the dataframe
+    dataframe.insert(0, "Subject", id_subject)
+
+    # Add columns with the subject info from the anagrafica at the end of the dataframe
+    dataframe.insert(len(dataframe.columns), "Gender", anagrafica_dict["Gender"])
+    dataframe.insert(len(dataframe.columns), "Age", anagrafica_dict["Age"])
+    dataframe.insert(len(dataframe.columns), "Dominant_Hand", anagrafica_dict["Dominant_Hand"])
+
+    # Add a column with the task number at the end of the dataframe
+    dataframe.insert(len(dataframe.columns), "Task", task_number)
+
+    return dataframe
