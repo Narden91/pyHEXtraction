@@ -2,6 +2,16 @@ import numpy as np
 import pandas as pd
 from handwriting_features.features import HandwritingFeatures
 from handwriting_sample import HandwritingSample
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from os import devnull
+
+
+@contextmanager
+def suppress_stdout_stderr():
+    """A context manager that redirects stdout and stderr to devnull"""
+    with open(devnull, 'w') as fnull:
+        with redirect_stderr(fnull) as err, redirect_stdout(fnull) as out:
+            yield err, out
 
 
 def tilt_azimuth_transformation(row: pd.Series):
@@ -80,7 +90,6 @@ def get_strokes_from_data(data_source: pd.DataFrame):
     Returns:
         None
     """
-    print(f"[+] Data after Transformation for HandwritingSample Library : \n{data_source}")
 
     # Meta data of the device Wacom One 13.3
     # meta_data = {"protocol_id": "dsa_2023",
@@ -183,8 +192,10 @@ def get_stroke_features(strokes: list) -> pd.DataFrame:
         # print(f"[+] Stroke {num + 1} -> {stroke_type}.")
         # print(f"[+] \nDataframe: \n{stroke_dataframe}")
 
-        # Create a HandwritingFeatures object from the stroke dataframe
-        feature_data = HandwritingFeatures.from_pandas_dataframe(stroke_dataframe)
+        # Avoid printing the HandwritingFeatures class output
+        with suppress_stdout_stderr():
+            # Create a HandwritingFeatures object from the stroke dataframe
+            feature_data = HandwritingFeatures.from_pandas_dataframe(stroke_dataframe)
 
         # Get the kinematic features
         kinematic_features_dict = get_kinematic_features(feature_data)

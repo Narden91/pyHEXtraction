@@ -11,6 +11,7 @@ settings:
   images_extension: .png
   data_output: ../Output_image_folder
   background_images_folder: ../Task_image_background
+  output_directory_csv: ../Output_csv_folder
 
 
 hydra:  

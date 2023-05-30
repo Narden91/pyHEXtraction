@@ -171,10 +171,10 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
 
         task_data['Time'] = task_data['Time'] * (1 / CLOCK)
 
+        return task_data
+
     except FileNotFoundError:
         print("File not found")
-
-    return task_data
 
 
 def points_type_filtering(df: pd.DataFrame, points_type: str = "onpaper") -> pd.DataFrame:

@@ -6,37 +6,17 @@ import hydra
 import os
 import pandas as pd
 import preprocessing
+import data_handler
 import feature_extraction_module
-from handwriting_features.features import HandwritingFeatures
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(config):
-    # Check data directory
-    try:
-        # If a directory has not yet been created
-        os.makedirs(config.settings.data_source)
+    # Check data directory and retrieve data
+    folders_in_data, background_images_list = data_handler.check_directories_and_load_data(config)
 
-        sys.exit("Empty directory data")
-    except OSError:
-        if not os.listdir(config.settings.data_source):
-            sys.exit("Empty directory data")
-        else:
-            # Get all the folders (complete PATH) inside data (to get only folder name replace f.path with f.name)
-            folders_in_data = [f.path for f in os.scandir(config.settings.data_source) if f.is_dir()]
-
-    # Check background images directory  
-    try:
-        # If directory has not yet been created
-        os.makedirs(config.settings.background_images_folder)
-
-        sys.exit("Empty background images folder")
-    except OSError:
-        if not os.listdir(config.settings.background_images_folder):
-            sys.exit("Empty background images folder")
-        else:
-            # Get the background_images
-            background_images_list = preprocessing.get_images_in_folder(config.settings.background_images_folder)
+    # Load the anagrafica file
+    # anagrafica_list = data_handler.load_anagrafica(folders_in_data[0])
 
     # Iterate over the folders in data
     for folder in folders_in_data:
@@ -46,7 +26,7 @@ def main(config):
         # Process the images in Images folder if necessary
         # preprocessing.process_images_files(images_folder,config.settings.images_extension)
 
-        # Get all the .csv files (COMPLETE PATH) inside the folder 
+        # Get all the .csv files (COMPLETE PATH) inside the folder
         task_file_list = [f.path for f in os.scandir(folder) if
                           f.is_file() and f.path.endswith(config.settings.file_extension)]
 
@@ -55,8 +35,8 @@ def main(config):
 
         # Iterate over the task file in the data folder and the background image
         for task_number, (task, bck_image) in enumerate(zip(task_file_list, background_images_list)):
-            # Debug: computes only the first "n" file in the folder
-            if task_number == 1:
+            # Debug: computes only the "n" file in the folder
+            if task_number == 0:
                 # Create the dataframe from the csv data
                 task_dataframe = preprocessing.load_data_from_csv(task)
 
@@ -73,16 +53,19 @@ def main(config):
                 #                                      bck_image, task, config)
 
                 # Show image-video of the current task created from the csv
-                # preprocessing.create_gif_from_data(task_dataframe["PointX"].to_numpy(), 
-                #                                      task_dataframe["PointY"].to_numpy(), 
+                # preprocessing.create_gif_from_data(task_dataframe["PointX"].to_numpy(),
+                #                                      task_dataframe["PointY"].to_numpy(),
                 #                                      task_dataframe["Pressure"].to_numpy(),
                 #                                      bck_image, task, config)
 
                 # Print the csv data of the current task
-                print(f"[+] Task Preprocessed: \n {task_dataframe.head().to_string()} \n")
+                # print(f"[+] Task Preprocessed: \n {task_dataframe.head().to_string()} \n")
 
                 # Manipulate the dataframe to be ready for HandwritingSample library
                 task_dataframe = feature_extraction_module.convert_to_HandwritingSample_library(task_dataframe)
+
+                # Debug: print the data after the transformation
+                # print(f"[+] Data after Transformation for HandwritingSample Library : \n{task_dataframe}")
 
                 # Get the strokes using the HandwritingSample library
                 stroke_list = feature_extraction_module.get_strokes_from_data(task_dataframe)
@@ -91,10 +74,13 @@ def main(config):
                 feature_dataframe = feature_extraction_module.get_stroke_features(stroke_list)
 
                 # Print the features extracted from the current task
-                print(f"[+] Task Features: \n {feature_dataframe.head().to_string()} \n")
+                print(f"[+] Task {task_number + 1} extracted features: \n {feature_dataframe.to_string()} \n")
+
+                # Save the features extracted from the current task
+                data_handler.save_data_to_csv(feature_dataframe, task_number + 1, folder, task, config)
 
             # else:
-            #     break  
+            #     break
 
     return
 
