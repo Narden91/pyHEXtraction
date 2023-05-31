@@ -70,7 +70,7 @@ After creating the virtual environment, you can run the project on PyCharm.
 
 1. Open the project on PyCharm
 2. Open the Terminal
-3. Go to Settings -> Project -> Project Interpreter
+3. Go to Settings &rarr; Project &rarr; Project Interpreter
 4. Click on the Gear Icon and select Add Local
 5. Select the virtual environment folder
 6. Open main.py and run it
@@ -108,15 +108,23 @@ After creating the virtual environment, you can run the project on PyCharm.
       git push origin --delete <branch_name>
     ```
 
-# Current Workings
-- [ ] Pass from Points Dataframe to &rarr; Stroke Dataframe
-- [ ] Feature 1: Stroke Length
-
+# Work in Progress
+- [x] Data Cleaning
+- [x] Correct offset from DIGITIZER
+- [x] Correct offset for Screen Resolution
+- [x] Retrieve information from Anagrafica
+- [x] Prepare dataframe for the analysis
+- [x] Extract Strokes
+- [x] Extract Kinematic Features
+- [x] Extract Dynamics Features
+- [x] Extract Personal Features
+- [ ] Extract Temporal Features
+- [ ] Save dataframes to CSV
 
 ## License
 This project is licensed under the @Università degli Studi di Cassino e del Lazio Meridionale
 
 ## Notes
 On Windows:
-Make sure to have Screen Scale at 100% instead of 120% or other values,
-otherwise the task rendering on screen won't fit.
+In order to visualize GIF correctly, make sure to have Screen Scale at 100% instead of 120% or other values,
+otherwise the task won't fit the screen.

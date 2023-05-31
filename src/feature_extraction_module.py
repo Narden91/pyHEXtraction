@@ -22,18 +22,18 @@ def tilt_azimuth_transformation(row: pd.Series):
     """
     # Tilt and Azimuth correction
     if row['TiltX'] == 0 and row['TiltY'] == 0:
-        return np.pi / 2, 0
+        return np.pi/2, 0
     elif row['TiltX'] == 0 and row['TiltY'] > 0:
-        return np.pi / 2 - row['TiltY'], np.pi / 2
+        return np.pi/2 - row['TiltY'], np.pi/2
     elif row['TiltX'] == 0 and row['TiltY'] < 0:
-        return np.pi / 2 + row['TiltY'], 3 * np.pi / 2
+        return np.pi/2 + row['TiltY'], 3 * np.pi/2
     elif row['TiltX'] > 0 and row['TiltY'] == 0:
-        return np.pi / 2 - row['TiltX'], 0
+        return np.pi/2 - row['TiltX'], 0
     elif row['TiltX'] < 0 and row['TiltY'] == 0:
-        return np.pi / 2 + row['TiltX'], np.pi
+        return np.pi/2 + row['TiltX'], np.pi
     else:
-        azimuth = np.arctan(np.tan(row['TiltY']) / np.tan(row['TiltX']))
-        tilt = np.arctan(np.sin(azimuth) / np.tan(row['TiltY']))
+        azimuth = np.arctan(np.tan(row['TiltY'])/np.tan(row['TiltX']))
+        tilt = np.arctan(np.sin(azimuth)/np.tan(row['TiltY']))
         return tilt, azimuth
 
 
