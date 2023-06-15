@@ -77,7 +77,7 @@ def main(config):
                 feature_dataframe = feature_extraction_module.get_stroke_features(stroke_list)
 
                 # Save the features extracted from the current task
-                data_handler.save_data_to_csv(feature_dataframe, task_number + 1, folder, task, anagrafica_data, config)
+                # data_handler.save_data_to_csv(feature_dataframe, task_number + 1, folder, task, anagrafica_data, config)
 
             # else:
             #     break

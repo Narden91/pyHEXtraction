@@ -22,18 +22,18 @@ def tilt_azimuth_transformation(row: pd.Series):
     """
     # Tilt and Azimuth correction
     if row['TiltX'] == 0 and row['TiltY'] == 0:
-        return np.pi/2, 0
+        return np.pi / 2, 0
     elif row['TiltX'] == 0 and row['TiltY'] > 0:
-        return np.pi/2 - row['TiltY'], np.pi/2
+        return np.pi / 2 - row['TiltY'], np.pi / 2
     elif row['TiltX'] == 0 and row['TiltY'] < 0:
-        return np.pi/2 + row['TiltY'], 3 * np.pi/2
+        return np.pi / 2 + row['TiltY'], 3 * np.pi / 2
     elif row['TiltX'] > 0 and row['TiltY'] == 0:
-        return np.pi/2 - row['TiltX'], 0
+        return np.pi / 2 - row['TiltX'], 0
     elif row['TiltX'] < 0 and row['TiltY'] == 0:
-        return np.pi/2 + row['TiltX'], np.pi
+        return np.pi / 2 + row['TiltX'], np.pi
     else:
-        azimuth = np.arctan(np.tan(row['TiltY'])/np.tan(row['TiltX']))
-        tilt = np.arctan(np.sin(azimuth)/np.tan(row['TiltY']))
+        azimuth = np.arctan(np.tan(row['TiltY']) / np.tan(row['TiltX']))
+        tilt = np.arctan(np.sin(azimuth) / np.tan(row['TiltY']))
         return tilt, azimuth
 
 
@@ -203,6 +203,15 @@ def get_stroke_features(strokes: list) -> pd.DataFrame:
         # Get the dynamic features
         dynamic_features_dict = get_dynamic_features(feature_data)
 
+        # Get the spatial features
+        # spatial_features_dict = get_spatial_features(feature_data)
+
+        # Get the temporal features
+        # temporal_features_dict = get_temporal_features(feature_data)
+
+        # Get the composite features
+        # composite_features_dict = get_composite_features(feature_data)
+
         # Create a dictionary with num
         kinematic_features_dict = {"stroke_id": num + 1, "stroke_type": stroke_type,
                                    **kinematic_features_dict, **dynamic_features_dict}
@@ -299,3 +308,140 @@ def get_dynamic_features(data: HandwritingFeatures) -> dict:
                             'pressure_std': round(data.pressure(statistics=["std"])[0], 3)}
 
     return dynamic_feature_dict
+
+
+def get_spatial_features(data: HandwritingFeatures) -> dict:
+    """ Get the spatial features of the strokes.
+    g) NISI = Number of Intra Stroke Intersections
+    h) RNISI = Relative Number of Intra Stroke Intersections
+    i) TNISI = Total Number of Intra Stroke Intersections
+    j) RTNISI = Relative Total Number of Intra Stroke Intersections
+    k) NOSI = Number of Inter Stroke Intersections
+    l) RNOSI = Relative Number of Inter Stroke Intersections
+    m) vertical peaks indices
+    n) vertical valleys indices
+    o) vertical peaks values
+    p) vertical valleys values
+    q) vertical peaks velocity
+    r) vertical valleys velocity
+    s) vertical peaks distance
+    t) vertical valleys distance
+    u) vertical peaks duration
+    v) vertical valleys duration
+    Args:
+        data (HandwritingFeatures): HandwritingFeatures object
+    Returns:
+        dict: Dictionary of the spatial features
+    """
+    if not isinstance(data, HandwritingFeatures):
+        raise TypeError("data must be a HandwritingFeatures object")
+
+    fs = 200
+
+    spatial_feature_dict = {'stroke_length_mean': round(data.stroke_length(statistics=["mean"])[0], 3),
+                            'stroke_length_std': round(data.stroke_length(statistics=["std"])[0], 3),
+                            'stroke_height_mean': round(data.stroke_height(statistics=["mean"])[0], 3),
+                            'stroke_height_std': round(data.stroke_height(statistics=["std"])[0], 3),
+                            'stroke_width_mean': round(data.stroke_width(statistics=["mean"])[0], 3),
+                            'stroke_width_std': round(data.stroke_width(statistics=["std"])[0], 3),
+                            'writing_length': round(data.writing_length(), 3),
+                            'writing_height': round(data.writing_height(), 3),
+                            'writing_width': round(data.writing_width(), 3),
+                            'NISI_mean':
+                                round(data.number_of_intra_stroke_intersections(statistics=['mean'])[0], 3),
+                            'NISI_std':
+                                round(data.number_of_intra_stroke_intersections(statistics=['std'])[0], 3),
+                            'RNISI_mean':
+                                round(data.relative_number_of_intra_stroke_intersections(statistics=['mean'])[0], 3),
+                            'RNISI_std':
+                                round(data.relative_number_of_intra_stroke_intersections(statistics=['std'])[0], 3),
+                            'TNISI':
+                                round(data.total_number_of_intra_stroke_intersections(), 3),
+                            'RTNISI':
+                                round(data.relative_total_number_of_intra_stroke_intersections(), 3),
+                            'NOSI':
+                                round(data.number_of_inter_stroke_intersections(), 3),
+                            'RNOSI':
+                                round(data.relative_number_of_inter_stroke_intersections(), 3),
+                            'vertical_peaks_indices_mean': round(
+                                data.vertical_peaks_indices(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_peaks_indices_std': round
+                            (data.vertical_peaks_indices(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_valleys_indices_mean': round(
+                                data.vertical_valleys_indices(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_valleys_indices_std': round(
+                                data.vertical_valleys_indices(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_peaks_values_mean': round(
+                                data.vertical_peaks_values(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_peaks_values_std': round(
+                                data.vertical_peaks_values(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_valleys_values_mean': round(
+                                data.vertical_valleys_values(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_valleys_values_std': round(
+                                data.vertical_valleys_values(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_peaks_velocity_mean': round(
+                                data.vertical_peaks_velocity(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_peaks_velocity_std': round(
+                                data.vertical_peaks_velocity(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_valleys_velocity_mean': round(
+                                data.vertical_valleys_velocity(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_valleys_velocity_std': round(
+                                data.vertical_valleys_velocity(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_peaks_distance_mean': round(
+                                data.vertical_peaks_distance(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_peaks_distance_std': round(
+                                data.vertical_peaks_distance(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_valleys_distance_mean': round(
+                                data.vertical_valleys_distance(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_valleys_distance_std': round(
+                                data.vertical_valleys_distance(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_peaks_duration_mean': round(
+                                data.vertical_peaks_duration(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_peaks_duration_std': round(
+                                data.vertical_peaks_duration(fs=fs, statistics=['std'])[0], 3),
+                            'vertical_valleys_duration_mean': round(
+                                data.vertical_valleys_duration(fs=fs, statistics=['mean'])[0], 3),
+                            'vertical_valleys_duration_std': round(
+                                data.vertical_valleys_duration(fs=fs, statistics=['std'])[0], 3)
+                            }
+
+
+def get_temporal_features(data: HandwritingFeatures) -> dict:
+    """ Get the temporal features of the strokes.
+    a) stroke duration
+    b) ratio of stroke durations (on-surface / in-air strokes)
+    c) writing duration
+    d) writing duration overall
+    e) ratio of writing durations (on-surface / in-air writing)
+    f) number of interruptions
+    g) number of interruptions_relative
+    Args:
+        data (HandwritingFeatures): HandwritingFeatures object
+    Returns:
+        dict: Dictionary of the temporal features
+    """
+    pass
+
+
+def get_composite_features(data: HandwritingFeatures) -> dict:
+    """ Get the composite features of the strokes.
+    a) writing tempo
+    b) writing stops
+    c) number of changes in x profile
+    d) number of changes in y profile
+    e) number of changes in azimuth
+    f) number of changes in tilt
+    g) number of changes in pressure
+    h) number of changes in velocity profile
+    i) relative number of changes in x profile
+    j) relative number of changes in y profile
+    k) relative number of changes in azimuth
+    l) relative number of changes in tilt
+    m) relative number of changes in pressure
+    n) relative number of changes in velocity profile
+    Args:
+        data (HandwritingFeatures): HandwritingFeatures object
+    Returns:
+        dict: Dictionary of the composite features
+    """
+    pass
