@@ -6,22 +6,23 @@ import hydra
 import os
 import pandas as pd
 import preprocessing
-import data_handler
-import feature_extraction_module
+from data_handler import check_directories_and_load_data, load_anagrafica, read_anagrafica, save_data_to_csv
+from data_conversion_module import convert_to_HandwritingSample_library, stroke_segmentation
+from feature_extraction_module import stroke_approach_feature_extraction
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(config):
     # Check data directory and retrieve data
-    folders_in_data, background_images_list = data_handler.check_directories_and_load_data(config)
+    folders_in_data, background_images_list = check_directories_and_load_data(config)
 
     # Iterate over the folders in data
     for folder in folders_in_data:
         # Load the anagrafica file
-        anagrafica_file = data_handler.load_anagrafica(folder)
+        anagrafica_file = load_anagrafica(folder)
 
         # Read the anagrafica file
-        anagrafica_data = data_handler.read_anagrafica(anagrafica_file)
+        anagrafica_data = read_anagrafica(anagrafica_file)
 
         # list of the image file in the subject folder
         # images_folder = [f.path for f in os.scandir(folder) if f.is_dir()]
@@ -40,6 +41,7 @@ def main(config):
         for task_number, (task, bck_image) in enumerate(zip(task_file_list, background_images_list)):
             # Debug: computes only the "n" file in the folder
             if task_number == 0:
+                # -------------------Preprocessing Section------------------- #
                 # Create the dataframe from the csv data
                 task_dataframe = preprocessing.load_data_from_csv(task)
 
@@ -64,25 +66,25 @@ def main(config):
                 # Print the csv data of the current task
                 # print(f"[+] Task Preprocessed: \n {task_dataframe.head().to_string()} \n")
 
+                # -------------------Library Conversion Section------------------- #
                 # Manipulate the dataframe to be ready for HandwritingSample library
-                task_dataframe = feature_extraction_module.convert_to_HandwritingSample_library(task_dataframe)
+                task_dataframe = convert_to_HandwritingSample_library(task_dataframe)
 
                 # Debug: print the data after the transformation
                 # print(f"[+] Data after Transformation for HandwritingSample Library : \n{task_dataframe}")
 
                 # Get the strokes using the HandwritingSample library
-                stroke_list = feature_extraction_module.get_strokes_from_data(task_dataframe)
+                stroke_list = stroke_segmentation(task_dataframe)
 
-                # Extract the features from the strokes
-                feature_dataframe = feature_extraction_module.get_stroke_features(stroke_list)
+                # -------------------Feature Extraction Section------------------- #
+                # Stroke Approach feature extraction
+                stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_dataframe)
+
+                # print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
 
                 # Save the features extracted from the current task
-                # data_handler.save_data_to_csv(feature_dataframe, task_number + 1, folder, task, anagrafica_data, config)
-
-            # else:
-            #     break
-
-    return
+                save_data_to_csv(stroke_approach_dataframe, task_number + 1, folder, anagrafica_data, config)
+    return 0
 
 
 if __name__ == '__main__':

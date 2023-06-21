@@ -58,7 +58,7 @@ def read_anagrafica(anagrafica_file):
     """
     Read the anagrafica text file row by row
     :param anagrafica_file: path of the anagrafica file
-    :return: a list of lists containing the anagrafica data
+    :return anagrafica_data: dictionary containing the anagrafica data {Gender, Age, Dominant_Hand}
     """
 
     try:
@@ -89,23 +89,20 @@ def read_anagrafica(anagrafica_file):
         raise Exception(f"Error while reading: {anagrafica_file} file")
 
 
-def save_data_to_csv(dataframe, task_number, folder, filename, anagrafica_dict, config):
+def save_data_to_csv(dataframe, task_number, folder, anagrafica_dict, config):
     """
     Save the dataframe to csv
     :param dataframe: dataframe to save
     :param task_number: number of the task
     :param folder: folder in which save the csv
-    :param filename: name of the csv file
     :param anagrafica_dict: dictionary containing the anagrafica data
     :param config: config file
     :return: None
     """
+    # Create the filename for the csv
+    filename_csv = "Task_" + str(task_number) + ".csv"
 
-    # Get the last part of the file path (the filename)
-    filename = os.path.split(filename)[1]
-
-    # Obtain Task number from filename
-    filename = filename.split("_")[0] + ".csv"
+    # print(f"[+] Saving dataframe to csv: {filename_csv} \n")
 
     # Get the last part of the path (the folder name)
     folder = os.path.split(folder)[1]
@@ -113,10 +110,8 @@ def save_data_to_csv(dataframe, task_number, folder, filename, anagrafica_dict, 
     # Get Subject number (CRC_SUBJECT_001 -> 1)
     subject_number = int(folder.split("_")[2])
 
-    # Add additional information to the dataframe
+    # Add subject information to the dataframe
     dataframe = add_personal_info_to_dataframe(dataframe, subject_number, anagrafica_dict, task_number)
-
-    task_path = ""
 
     # Check if the directory exists
     try:
@@ -134,9 +129,9 @@ def save_data_to_csv(dataframe, task_number, folder, filename, anagrafica_dict, 
     try:
         print(f"[+] Dataframe saved: \n {dataframe.to_string()} \n")
         # Save the dataframe to csv
-        # dataframe.to_csv(task_path + "/" + filename, index=False)
+        # dataframe.to_csv(task_path + "/" + filename_csv, index=False)
     except OSError:
-        raise Exception(f"Error while saving: {filename} file")
+        raise Exception(f"Error while saving: {filename_csv} file")
 
 
 def add_personal_info_to_dataframe(dataframe: pd.DataFrame, id_subject: int, anagrafica_dict: dict, task_number: int):
