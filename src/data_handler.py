@@ -127,11 +127,9 @@ def save_data_to_csv(dataframe, task_number, folder, anagrafica_dict, config):
         pass
 
     try:
-        print(f"[+] Dataframe saved: \n {dataframe.to_string()} \n")
-        # Save the dataframe to csv
-        # dataframe.to_csv(task_path + "/" + filename_csv, index=False)
-    except OSError:
-        raise Exception(f"Error while saving: {filename_csv} file")
+        dataframe.to_csv(task_path + "/" + filename_csv, index=False)
+    except FileNotFoundError:
+        print("File not found")
 
 
 def add_personal_info_to_dataframe(dataframe: pd.DataFrame, id_subject: int, anagrafica_dict: dict, task_number: int):
