@@ -1,92 +1,118 @@
 import os
-
 import pandas as pd
-
 import preprocessing
 import sys
 
 sys.dont_write_bytecode = True
 
 
-def check_directories_and_load_data(config):
-    # Check data directory
-    try:
-        # If a directory has not yet been created
-        os.makedirs(config.settings.data_source)
+def get_data_folders(folder):
+    """
+    Check the data directory and retrieve a list of subdirectories.
 
-        sys.exit("Empty directory data")
-    except OSError:
-        if not os.listdir(config.settings.data_source):
-            sys.exit("Empty directory data")
-        else:
-            # Get all the folders (complete PATH) inside data (to get only folder name replace f.path with f.name)
-            folders_in_data = [f.path for f in os.scandir(config.settings.data_source) if f.is_dir()]
+    Args:
+    folder (str): Path to the data directory.
 
+    Returns:
+    list: List of paths to subdirectories within the data directory.
+    """
+    # Ensure the folder exists, create if it doesn't
+    if not os.path.exists(folder):
+        os.makedirs(folder, exist_ok=True)
+        return [], "Data directory created. Please insert folders and files."
+
+    # Check if the directory is empty
+    if not os.listdir(folder):
+        return [], "Empty data directory."
+
+    # Get all subdirectories in the folder
+    folders_in_data = [f.path for f in os.scandir(folder) if f.is_dir()]
+    return folders_in_data, None
+
+
+def get_background_images_folder(folder):
+    """
+    Check the background images directory and retrieve the background images
+    :param folder: background images directory
+    :return: background_images_list: list of the background images
+    """
     # Check background images directory
     try:
         # If directory has not yet been created
-        os.makedirs(config.settings.background_images_folder)
+        os.makedirs(folder)
 
         sys.exit("Empty background images folder")
     except OSError:
-        if not os.listdir(config.settings.background_images_folder):
+        if not os.listdir(folder):
             sys.exit("Empty background images folder")
         else:
             # Get the background_images
-            background_images_list = preprocessing.get_images_in_folder(config.settings.background_images_folder)
+            background_images_list = preprocessing.get_images_in_folder(folder)
 
-    return folders_in_data, background_images_list
+    return background_images_list
+
+
+def get_directory_contents(folder, content_type='folders'):
+    """
+    Check a directory and retrieve its contents (subdirectories or files).
+
+    Args:
+    folder (str): Path to the directory.
+    content_type (str): Type of content to retrieve ('folders' or 'files').
+
+    Returns:
+    list: List of paths to the requested contents within the directory.
+    str: Message indicating the status or any issues with the directory.
+    """
+    # Ensure the folder exists, create if it doesn't
+    if not os.path.exists(folder):
+        os.makedirs(folder, exist_ok=True)
+        return [], f"Directory created at {folder}. Please insert the relevant contents."
+
+    # Check if the directory is empty
+    if not os.listdir(folder):
+        return [], "Empty directory."
+
+    # Get contents based on the specified type
+    if content_type == 'folders':
+        contents = [f.path for f in os.scandir(folder) if f.is_dir()]
+    elif content_type == 'files':
+        contents = preprocessing.get_images_in_folder(folder)
+    else:
+        raise ValueError("Invalid content_type. Choose 'folders' or 'files'.")
+
+    return contents, None
 
 
 def load_anagrafica(folder):
     """
-    Load the anagrafica file from the folder
+    Load the anagrafica file from the folder.
     :param folder: folder containing the anagrafica file
-    :return: the path of the anagrafica file
+    :return: the path of the anagrafica file or None if not found
     """
-
-    anagrafica_list = [f.path for f in os.scandir(folder) if f.is_file() and "Anagrafica" in f.name]
-
-    # Check if there is an anagrafica file
-    if len(anagrafica_list) == 0:
-        sys.exit("No anagrafica file found")
-    else:
-        return anagrafica_list[0]
+    anagrafica_files = [f.path for f in os.scandir(folder) if f.is_file() and "Anagrafica" in f.name]
+    return anagrafica_files[0] if anagrafica_files else None
 
 
 def read_anagrafica(anagrafica_file):
     """
-    Read the anagrafica text file row by row
+    Read the anagrafica text file and extract relevant data.
     :param anagrafica_file: path of the anagrafica file
-    :return anagrafica_data: dictionary containing the anagrafica data {Gender, Age, Dominant_Hand}
+    :return: dictionary containing the anagrafica data {Gender, Age, Dominant_Hand} or None if an error occurs
     """
-
     try:
-        # Open the anagrafica file
-        with open(anagrafica_file, "r") as f:
-            # Read the file row by row
-            anagrafica_data = f.readlines()
+        with open(anagrafica_file, "r") as file:
+            data = file.readlines()
 
-        # get the subject sex from the fourth row after the string Sesso:
-        subject_gender = anagrafica_data[3].split(":")[1].strip()
+        gender = data[3].split(":")[1].strip()
+        dob = data[4].split(":")[1].strip()
+        dominant_hand = data[5].split(":")[1].strip()
+        age = preprocessing.calculate_age(dob)
 
-        # get the subject date of birth from the fifth row after the string Data di nascita:
-        subject_date_of_birth = anagrafica_data[4].split(":")[1].strip()
-
-        # get the subject age given the date of birth by subtracting the current year
-        subject_age = preprocessing.calculate_age(subject_date_of_birth)
-
-        # get the subject dominant hand from the sixth row after the string Mano dominante:
-        subject_dominant_hand = anagrafica_data[5].split(":")[1].strip()
-
-        # Aggregate all the data in a dictionary
-        anagrafica_data = {"Gender": subject_gender,
-                           "Age": subject_age,
-                           "Dominant_Hand": subject_dominant_hand}
-
-        return anagrafica_data
-    except OSError:
-        raise Exception(f"Error while reading: {anagrafica_file} file")
+        return {"Gender": gender, "Age": age, "Dominant_Hand": dominant_hand}
+    except (OSError, IndexError):
+        print(f"Error while reading or processing: {anagrafica_file}")
+        return None
 
 
 def save_data_to_csv(dataframe, task_number, folder, anagrafica_dict, config):

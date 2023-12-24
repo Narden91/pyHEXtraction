@@ -96,16 +96,16 @@ def process_images_files(images_folder_path: str, image_extension: str) -> None:
     :type image_extension: str
     """
 
-    for image in images_folder_path:
-        # Get alle the images in the folder
-        images_file_list = [f.path for f in os.scandir(image) if f.is_file() and f.path.endswith(image_extension)]
+    # Get alle the images in the folder
+    images_file_list = [f.path for f in os.scandir(images_folder_path) if f.is_file() and
+                        f.path.endswith(image_extension)]
 
-        # Sort by filename
-        images_file_list = sorted(images_file_list, key=lambda x: len(x))
+    # Sort by filename
+    images_file_list = sorted(images_file_list, key=lambda x: len(x))
 
-        # Loop through the images and crop and resize them if they don't match the size 1920x1080
-        for file in images_file_list:
-            crop_and_resize_image(file, file)
+    # Loop through the images and crop and resize them if they don't match the size 1920x1080
+    for file in images_file_list:
+        crop_and_resize_image(file, file)
 
 
 def crop_and_resize_image(source_path: str, destination_path: str) -> None:
@@ -426,8 +426,11 @@ def saving_image(image, original_filename: str, config) -> None:
     name as the original file
     
     :param image: the image to be saved
+    :type image: np.array
     :param original_filename: The full path to the original image
     :type original_filename: str
+    :param config: The configuration file
+    :type config: dict
     :return: None
     """
 

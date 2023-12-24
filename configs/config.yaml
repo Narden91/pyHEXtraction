@@ -6,12 +6,13 @@ defaults:
   - override hydra/job_logging: disabled    
   
 settings:
-  data_source: ../data
+  data_source: ..\\data
   file_extension: .csv
+  use_images: False
   images_extension: .png
-  data_output: ../Output_image_folder
-  background_images_folder: ../Task_image_background
-  output_directory_csv: ../Output_csv_folder
+  data_output: ..\\Output_image_folder
+  background_images_folder: ..\\Task_image_background
+  output_directory_csv: ..\\Output_csv_folder
 
 
 hydra:  

@@ -14,7 +14,6 @@ def suppress_stdout_stderr():
 
 
 # ----------------------------- Features Extraction ------------------------------------- #
-
 def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFrame) -> pd.DataFrame:
     """ Compute the features of the strokes and the global features for
     the stroke approach feature extraction.
@@ -100,7 +99,40 @@ def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFra
     return feature_dataframe
 
 
-def get_kinematic_features(data: HandwritingFeatures) -> dict:
+def statistical_feature_extraction(task_dataframe: pd.DataFrame) -> pd.DataFrame:
+    """ Compute the statistical feature extraction for the task.
+
+    Args:
+        task_dataframe (pd.DataFrame): Dataframe containing the data for compute the global features
+    Returns:
+        feature_dataframe: dataframe containing the features of the global features
+    """
+    # Create an empty dataframe
+    feature_dataframe = None
+
+    # Avoid printing the HandwritingFeatures class output
+    with suppress_stdout_stderr():
+        # Create a HandwritingFeatures object from the task dataframe to get the global features
+        feature_global_data = HandwritingFeatures.from_pandas_dataframe(task_dataframe)
+
+    # Get the kinematic features
+    kinematic_features_dict = get_kinematic_features(feature_global_data)
+
+    # Create a dictionary with num
+    features_dict = {**kinematic_features_dict}
+
+    if feature_dataframe is None:
+        # Create Pandas Dataframe from the kinematic features dictionary
+        feature_dataframe = pd.DataFrame(features_dict, index=[0])
+    else:
+        # Concatenate the dataframes
+        feature_dataframe = pd.concat([feature_dataframe,
+                                       pd.DataFrame([features_dict])], ignore_index=True)
+
+    return feature_dataframe
+
+
+def get_kinematic_features(data: HandwritingFeatures, in_air=False) -> dict:
     """ Get the kinematic features of the strokes.
     Available_statistics = {
         "mean": mean,
@@ -128,30 +160,31 @@ def get_kinematic_features(data: HandwritingFeatures) -> dict:
 
     Args:
         data (HandwritingFeatures): HandwritingFeatures object
+        in_air (bool): Boolean to get the in air features
     Returns:
         dict: Dictionary of the kinematic features
     """
     if not isinstance(data, HandwritingFeatures):
         raise TypeError("data must be a HandwritingFeatures object")
 
-    return {'x_velocity_mean': round(data.velocity(axis="x", statistics=["mean"])[0], 3),
-            'x_velocity_std': round(data.velocity(axis="x", statistics=["std"])[0], 3),
-            'y_velocity_mean': round(data.velocity(axis="y", statistics=["mean"])[0], 3),
-            'y_velocity_std': round(data.velocity(axis="y", statistics=["std"])[0], 3),
-            'xy_velocity_mean': round(data.velocity(axis="xy", statistics=["mean"])[0], 3),
-            'xy_velocity_std': round(data.velocity(axis="xy", statistics=["std"])[0], 3),
-            'x_acceleration_mean': round(data.acceleration(axis="x", statistics=["mean"])[0], 3),
-            'x_acceleration_std': round(data.acceleration(axis="x", statistics=["std"])[0], 3),
-            'y_acceleration_mean': round(data.acceleration(axis="y", statistics=["mean"])[0], 3),
-            'y_acceleration_std': round(data.acceleration(axis="y", statistics=["std"])[0], 3),
-            'xy_acceleration_mean': round(data.acceleration(axis="xy", statistics=["mean"])[0], 3),
-            'xy_acceleration_std': round(data.acceleration(axis="xy", statistics=["std"])[0], 3),
-            'x_jerk_mean': round(data.jerk(axis="x", statistics=["mean"])[0], 3),
-            'x_jerk_std': round(data.jerk(axis="x", statistics=["std"])[0], 3),
-            'y_jerk_mean': round(data.jerk(axis="y", statistics=["mean"])[0], 3),
-            'y_jerk_std': round(data.jerk(axis="y", statistics=["std"])[0], 3),
-            'xy_jerk_mean': round(data.jerk(axis="xy", statistics=["mean"])[0], 3),
-            'xy_jerk_std': round(data.jerk(axis="xy", statistics=["std"])[0], 3)}
+    return {'x_velocity_mean': round(data.velocity(axis="x", in_air=in_air, statistics=["mean"])[0], 3),
+            'x_velocity_std': round(data.velocity(axis="x", in_air=in_air, statistics=["std"])[0], 3),
+            'y_velocity_mean': round(data.velocity(axis="y", in_air=in_air, statistics=["mean"])[0], 3),
+            'y_velocity_std': round(data.velocity(axis="y", in_air=in_air, statistics=["std"])[0], 3),
+            'xy_velocity_mean': round(data.velocity(axis="xy", in_air=in_air, statistics=["mean"])[0], 3),
+            'xy_velocity_std': round(data.velocity(axis="xy", in_air=in_air, statistics=["std"])[0], 3),
+            'x_acceleration_mean': round(data.acceleration(axis="x", in_air=in_air, statistics=["mean"])[0], 3),
+            'x_acceleration_std': round(data.acceleration(axis="x", in_air=in_air, statistics=["std"])[0], 3),
+            'y_acceleration_mean': round(data.acceleration(axis="y", in_air=in_air, statistics=["mean"])[0], 3),
+            'y_acceleration_std': round(data.acceleration(axis="y", in_air=in_air, statistics=["std"])[0], 3),
+            'xy_acceleration_mean': round(data.acceleration(axis="xy", in_air=in_air, statistics=["mean"])[0], 3),
+            'xy_acceleration_std': round(data.acceleration(axis="xy", in_air=in_air, statistics=["std"])[0], 3),
+            'x_jerk_mean': round(data.jerk(axis="x", in_air=in_air, statistics=["mean"])[0], 3),
+            'x_jerk_std': round(data.jerk(axis="x", in_air=in_air, statistics=["std"])[0], 3),
+            'y_jerk_mean': round(data.jerk(axis="y", in_air=in_air, statistics=["mean"])[0], 3),
+            'y_jerk_std': round(data.jerk(axis="y", in_air=in_air, statistics=["std"])[0], 3),
+            'xy_jerk_mean': round(data.jerk(axis="xy", in_air=in_air, statistics=["mean"])[0], 3),
+            'xy_jerk_std': round(data.jerk(axis="xy", in_air=in_air, statistics=["std"])[0], 3)}
 
 
 def get_dynamic_features(data: HandwritingFeatures) -> dict:

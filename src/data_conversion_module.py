@@ -81,6 +81,41 @@ def convert_to_HandwritingSample_library(data_source: pd.DataFrame) -> pd.DataFr
     return data_source
 
 
+def get_handwriting_feature_dataframe(data_source: pd.DataFrame) -> pd.DataFrame:
+    """
+    Extract the data from the dataframe and return a dataframe ready to be used with the HandwritingFeatures library
+
+    Args:
+        data_source (pd.DataFrame): Dataframe containing the data
+    Returns:
+        pd.DataFrame: Dataframe containing the data for HandwritingFeatures library
+    """
+    handwriting_task = HandwritingSample.from_pandas_dataframe(data_source)
+
+    # Meta data of the device Wacom One 13.3
+    # meta_data = {"protocol_id": "dsa_2023",
+    #              "device_type": "Wacom One 13.3",
+    #              "device_driver": "2.1.0",
+    #              "lpi": 2540,  # lines per inch
+    #              "time_series_ranges": {
+    #                  "x": [0, 1920],
+    #                  "y": [0, 1080],
+    #                  "azimuth": [0, 180],
+    #                  "tilt": [0, 90],
+    #                  "pressure": [0, 32767]}}
+    #
+    # # Add the metadata to the HandwritingSample object
+    # handwriting_task.add_meta_data(meta_data=meta_data)
+    #
+    # # Transform all units
+    # handwriting_task.transform_all_units()
+
+    # Create a HandwritingSample object from the dataframe
+    handwriting_task = HandwritingSample.from_pandas_dataframe(data_source)
+
+    return handwriting_task
+
+
 def stroke_segmentation(data_source: pd.DataFrame):
     """
     Segments the data into strokes based on HandwritingSample library
@@ -108,6 +143,8 @@ def stroke_segmentation(data_source: pd.DataFrame):
     with suppress_stdout_stderr():
         # Create a HandwritingSample object from the dataframe
         handwriting_task = HandwritingSample.from_pandas_dataframe(data_source)
+
+        # print(f"handwriting_task: {handwriting_task}")
 
     # Add the metadata to the HandwritingSample object
     # handwriting_task.add_meta_data(meta_data=meta_data)
