@@ -13,32 +13,49 @@ def suppress_stdout_stderr():
             yield err, out
 
 
-def tilt_azimuth_transformation(row: pd.Series):
-    """ Correct the tilt and azimuth values from the csv file to be used with the HandwritingSample library
+def tilt_azimuth_transformation(df: pd.DataFrame):
+    """ Correct the tilt and azimuth values from the DataFrame to be used with the HandwritingSample library
 
     Args:
-        row (pd.Series): Row of the dataframe containing the tilt and azimuth values
+        df (pd.DataFrame): DataFrame containing the tilt and azimuth values
     """
-    # Tilt and Azimuth correction
-    if row['TiltX'] == 0 and row['TiltY'] == 0:
-        return np.pi / 2, 0
-    elif row['TiltX'] == 0 and row['TiltY'] > 0:
-        return np.pi / 2 - row['TiltY'], np.pi / 2
-    elif row['TiltX'] == 0 and row['TiltY'] < 0:
-        return np.pi / 2 + row['TiltY'], 3 * np.pi / 2
-    elif row['TiltX'] > 0 and row['TiltY'] == 0:
-        return np.pi / 2 - row['TiltX'], 0
-    elif row['TiltX'] < 0 and row['TiltY'] == 0:
-        return np.pi / 2 + row['TiltX'], np.pi
-    else:
-        azimuth = np.arctan(np.tan(row['TiltY']) / np.tan(row['TiltX']))
-        tilt = np.arctan(np.sin(azimuth) / np.tan(row['TiltY']))
-        return tilt, azimuth
+
+    # Initialize Tilt and Azimuth with default values
+    df['Tilt'] = np.pi / 2
+    df['Azimuth'] = 0
+
+    # Conditions
+    condition_Y_positive = df['TiltY'] > 0
+    condition_Y_negative = df['TiltY'] < 0
+    condition_X_positive = df['TiltX'] > 0
+    condition_X_negative = df['TiltX'] < 0
+
+    # Apply transformations
+    df.loc[condition_Y_positive, 'Tilt'] = np.pi / 2 - df['TiltY']
+    df.loc[condition_Y_positive, 'Azimuth'] = np.pi / 2
+
+    df.loc[condition_Y_negative, 'Tilt'] = np.pi / 2 + df['TiltY']
+    df.loc[condition_Y_negative, 'Azimuth'] = 3 * np.pi / 2
+
+    df.loc[condition_X_positive & ~condition_Y_positive & ~condition_Y_negative, 'Tilt'] = np.pi / 2 - df['TiltX']
+
+    df.loc[condition_X_negative & ~condition_Y_positive & ~condition_Y_negative, 'Tilt'] = np.pi / 2 + df['TiltX']
+    df.loc[condition_X_negative, 'Azimuth'] = np.pi
+
+    # Handle non-zero TiltX and TiltY
+    non_zero_conditions = (df['TiltX'] != 0) & (df['TiltY'] != 0)
+    df.loc[non_zero_conditions, 'Azimuth'] = np.arctan(df['TiltY'] / df['TiltX'])
+    df.loc[non_zero_conditions, 'Tilt'] = np.arctan(np.sin(df['Azimuth']) / df['TiltY'])
+
+    # Ensure non-negative values
+    df['Tilt'] = df['Tilt'].abs()
+    df['Azimuth'] = df['Azimuth'].abs()
+
+    return df
 
 
 def convert_to_HandwritingSample_library(data_source: pd.DataFrame) -> pd.DataFrame:
     """ Convert the data from the csv to a HandwritingSample object using the HandwritingFeatures library
-    If the plot looks weird, go to preprocessing.py and check the coordinates_manipulation function
 
     Args:
         data_source (pd.DataFrame): Dataframe containing the data from the csv file
@@ -46,37 +63,17 @@ def convert_to_HandwritingSample_library(data_source: pd.DataFrame) -> pd.DataFr
         pd.DataFrame: Dataframe containing the data to HandwritingSample object-ready
     """
 
-    # Create a new column pen_status with 1 if pressure is not 0 and 0 if pressure is 0
+    # Create pen_status column
     data_source['pen_status'] = np.where(data_source['Pressure'] != 0, 1, 0)
 
-    # Create new column Tilt that is the first positive value of the TiltX and TiltY columns
-    data_source['Tilt'] = np.where(data_source['TiltX'] > 0, data_source['TiltX'], data_source['TiltY'])
+    # Correct tilt and azimuth values
+    data_source = tilt_azimuth_transformation(data_source)
 
     # Extract, Reorder and Rename the columns of the dataframe
     data_source = data_source.iloc[:, [1, 2, 0, 10, 6, 11, 4]]
 
     # Rename the columns
     data_source.columns = ['x', 'y', 'time', 'pen_status', 'azimuth', 'tilt', 'pressure']
-
-    # # Correct Tilt and Azimuth for Library HandwritingSample
-    # data_source[["Tilt", "Azimuth_1"]] = data_source.apply(lambda row:
-    #                                                        pd.Series(tilt_azimuth_transformation(row)), axis=1)
-    #
-    # # Drop the columns TiltX, TiltY, Azimuth
-    # data_source = data_source.drop(columns=['TiltX', 'TiltY', 'Azimuth'])
-    #
-    # # Rename the column Azimuth_1 to Azimuth
-    # data_source = data_source.rename(columns={'Azimuth_1': 'Azimuth'})
-    #
-    # # Extract, Reorder and Rename the columns of the dataframe
-    # data_source = data_source.iloc[:, [1, 2, 0, 7, 9, 8, 4]]
-    #
-    # # Rename the columns
-    # data_source.columns = ['x', 'y', 'time', 'pen_status', 'azimuth', 'tilt', 'pressure']
-    #
-    # # Absolute value of the tilt and azimuth
-    # data_source['tilt'] = data_source['tilt'].abs()
-    # data_source['azimuth'] = data_source['azimuth'].abs()
 
     return data_source
 
@@ -90,8 +87,6 @@ def get_handwriting_feature_dataframe(data_source: pd.DataFrame) -> pd.DataFrame
     Returns:
         pd.DataFrame: Dataframe containing the data for HandwritingFeatures library
     """
-    handwriting_task = HandwritingSample.from_pandas_dataframe(data_source)
-
     # Meta data of the device Wacom One 13.3
     # meta_data = {"protocol_id": "dsa_2023",
     #              "device_type": "Wacom One 13.3",

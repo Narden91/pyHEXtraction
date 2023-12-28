@@ -99,39 +99,6 @@ def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFra
     return feature_dataframe
 
 
-def statistical_feature_extraction(task_dataframe: pd.DataFrame) -> pd.DataFrame:
-    """ Compute the statistical feature extraction for the task.
-
-    Args:
-        task_dataframe (pd.DataFrame): Dataframe containing the data for compute the global features
-    Returns:
-        feature_dataframe: dataframe containing the features of the global features
-    """
-    # Create an empty dataframe
-    feature_dataframe = None
-
-    # Avoid printing the HandwritingFeatures class output
-    with suppress_stdout_stderr():
-        # Create a HandwritingFeatures object from the task dataframe to get the global features
-        feature_global_data = HandwritingFeatures.from_pandas_dataframe(task_dataframe)
-
-    # Get the kinematic features
-    kinematic_features_dict = get_kinematic_features(feature_global_data)
-
-    # Create a dictionary with num
-    features_dict = {**kinematic_features_dict}
-
-    if feature_dataframe is None:
-        # Create Pandas Dataframe from the kinematic features dictionary
-        feature_dataframe = pd.DataFrame(features_dict, index=[0])
-    else:
-        # Concatenate the dataframes
-        feature_dataframe = pd.concat([feature_dataframe,
-                                       pd.DataFrame([features_dict])], ignore_index=True)
-
-    return feature_dataframe
-
-
 def get_kinematic_features(data: HandwritingFeatures, in_air=False) -> dict:
     """ Get the kinematic features of the strokes.
     Available_statistics = {
