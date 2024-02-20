@@ -33,7 +33,8 @@ settings:
   background_images_folder: ..\\Task_image_background
   output_directory_csv: ..\\Output_csv_folder
   in_air: False
-  verbose: True
+  verbose: False
   plotting: True
   feature_extraction: False
+  task_list: [1,3,5,7]
 

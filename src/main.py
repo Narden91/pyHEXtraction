@@ -7,6 +7,8 @@ import os
 from tqdm import tqdm
 from data_processor import DataProcessor
 import pandas as pd
+import numpy as np
+import src.plotting_module as plotting_module
 import preprocessing
 from data_conversion_module import convert_to_HandwritingSample_library, stroke_segmentation
 from feature_extraction_strokes import stroke_approach_feature_extraction
@@ -20,6 +22,7 @@ class MainClass:
         self.verbose = config.settings.verbose
         self.feature_extraction = config.settings.feature_extraction
         self.plot = config.settings.plotting
+        self.task_list = config.settings.task_list
 
     def run(self):
         data_source = self.processor.format_path_for_os(self.config.settings.data_source)
@@ -82,8 +85,8 @@ class MainClass:
 
             # Loop over the tasks in the folder of the subject
             for task_number, task in enumerate(task_file_list):
-                # Debug: computes only the "n" file in the folder
-                if task_number < 1:
+                # Debug: computes only the files in the task_list
+                if task_number + 1 in self.task_list:
                     # -------------------Preprocessing Section------------------- #
                     task_dataframe = self.processor.load_and_process_csv(task)
 
@@ -111,8 +114,10 @@ class MainClass:
                         print(f"[+] Task {task_number + 1} dataframe: \n{task_dataframe.head(10)}")
 
                     if self.plot:
-                        pass
-                        # preprocessing.plot_data(task_dataframe, task, self.config)
+                        if self.verbose:
+                            print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
+
+                        plotting_module.plot_3d()
 
                     # region Feature Extraction
                     if self.feature_extraction:
