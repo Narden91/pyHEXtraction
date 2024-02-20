@@ -110,7 +110,7 @@ class MainClass:
                     if self.verbose:
                         print(f"[+] Task {task_number + 1} dataframe: \n{task_dataframe.head(10).to_string()}")
 
-                    if self.plot and subject_number == 82:
+                    if self.plot:  # Debug: and subject_number == 82
                         if self.verbose:
                             print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
 
