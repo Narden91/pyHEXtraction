@@ -232,8 +232,8 @@ def points_type_filtering(df: pd.DataFrame, points_type: str = "onpaper") -> pd.
 def coordinates_manipulation(data: pd.DataFrame) -> pd.DataFrame:
     """
     It takes a dataframe of points, corrects the origin, filters the points, scales the points, and
-    transforms the points to the image origin -> (0,0) to top-left. 
-    
+    transforms the points to the image origin -> (0,0) to top-left.
+
     :param data: the dataframe containing the data
     :type data: pd.DataFrame
     :return: The x, y, and pressure arrays.
@@ -242,8 +242,8 @@ def coordinates_manipulation(data: pd.DataFrame) -> pd.DataFrame:
     # Correct the mismatched origin between Digitizer and Screen
     # For plotting -> PointY must be uncommented
     # For Image -> PointY must be commented
-    # data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
-    data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
+    data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
+    # data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
 
     # Filter Points from dataframe
     x_coordinates_array = data["PointX"].to_numpy()
@@ -256,16 +256,16 @@ def coordinates_manipulation(data: pd.DataFrame) -> pd.DataFrame:
     data["PointY"] = mapped_y_values.astype(int)
 
     # # Scale the arrays (Point_x : X_digitizer = Point_x_image : WIDTH_des) -> Point_x_image
-    # x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
-    # y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
-    #
-    # # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to IMAGE Standard Coordinates Origin (TOP_LEFT)
-    # x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
-    # y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
+    x_coordinates_array = (x_coordinates_array * WIDTH_IMAGE) / X_DIGITIZER
+    y_coordinates_array = (y_coordinates_array * HEIGHT_IMAGE) / Y_DIGITIZER
 
-    # # Assign new x,y values
-    # data["PointX"] = x_coordinates_array.astype(int)
-    # data["PointY"] = y_coordinates_array.astype(int)
+    # Coordinates Transformation from Wacom Origin (TOP-RIGHT) to IMAGE Standard Coordinates Origin (TOP_LEFT)
+    x_coordinates_array = WIDTH_IMAGE - (x_coordinates_array * 2)
+    y_coordinates_array = HEIGHT_IMAGE - y_coordinates_array
+
+    # Assign new x,y values
+    data["PointX"] = x_coordinates_array.astype(int)
+    data["PointY"] = y_coordinates_array.astype(int)
 
     return data
 
@@ -348,7 +348,7 @@ def create_image_from_data(x: np.array, y: np.array, pressure: np.array, backgro
         else:
             cv2.line(image, start, end, color_onair, thickness_onair)
 
-            # Show the draw process in the Window
+    # Show the draw process in the Window
     cv2.imshow(file_path, image)
 
     cv2.waitKey(0)

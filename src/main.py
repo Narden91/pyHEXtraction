@@ -93,9 +93,6 @@ class MainClass:
                     # Filter the dataframe by the type of points (onair / onpaper)
                     # task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
 
-                    # Correct the coordinates system from Digitizer origin -> Image Standard origin
-                    task_dataframe = preprocessing.coordinates_manipulation(task_dataframe)
-
                     if self.config.settings.use_images:
                         self.processor.process_images(folder, self.config.settings.images_extension,
                                                       background_images_list)
@@ -103,21 +100,21 @@ class MainClass:
                         preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(),
                                                              task_dataframe["PointY"].to_numpy(),
                                                              task_dataframe["Pressure"].to_numpy(),
-                                                             background_images_list, task, self.config)
+                                                             background_images_list[task_number+1], task, self.config)
                         # Show image-video of the current task created from the csv
                         preprocessing.create_gif_from_data(task_dataframe["PointX"].to_numpy(),
                                                            task_dataframe["PointY"].to_numpy(),
                                                            task_dataframe["Pressure"].to_numpy(),
-                                                           background_images_list, task, self.config)
+                                                           background_images_list[task_number+1], task, self.config)
 
                     if self.verbose:
-                        print(f"[+] Task {task_number + 1} dataframe: \n{task_dataframe.head(10)}")
+                        print(f"[+] Task {task_number + 1} dataframe: \n{task_dataframe.head(10).to_string()}")
 
-                    if self.plot:
+                    if self.plot and subject_number == 82:
                         if self.verbose:
                             print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
 
-                        plotting_module.plot_3d()
+                        plotting_module.plot_3d(task_dataframe, subject_number, task_number + 1)
 
                     # region Feature Extraction
                     if self.feature_extraction:

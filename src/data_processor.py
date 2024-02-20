@@ -60,7 +60,9 @@ class DataProcessor:
 
     @staticmethod
     def load_and_process_csv(task_file):
+        # Load the data
         dataframe = load_data_from_csv(task_file)
-        # Additional processing can be added here
+
+        # Correct the coordinates system from Digitizer origin -> Image Standard origin
         dataframe = coordinates_manipulation(dataframe)
         return dataframe
