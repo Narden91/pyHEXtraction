@@ -17,6 +17,9 @@ class MainClass:
     def __init__(self, config):
         self.config = config
         self.processor = DataProcessor(config)
+        self.verbose = config.settings.verbose
+        self.feature_extraction = config.settings.feature_extraction
+        self.plot = config.settings.plotting
 
     def run(self):
         data_source = self.processor.format_path_for_os(self.config.settings.data_source)
@@ -26,7 +29,7 @@ class MainClass:
         folders_in_data, message = self.processor.get_directory_contents(data_source, 'folders')
         if message:
             print(message)
-            return
+            return 0
 
         background_images_list = []
         if self.config.settings.use_images:
@@ -34,13 +37,13 @@ class MainClass:
                                                                                           'files')
             if image_message:
                 print(image_message)
-                return
+                return 0
 
         # Initialize the dataframe for the features
         subject_dataframe = pd.DataFrame()
 
-        for folder in tqdm(folders_in_data, desc="Processing folders"):
-
+        # Loop over Subject's folders
+        for num_folder, folder in enumerate(tqdm(folders_in_data, desc="Processing Subject Folder:"), start=1):
             # Get the base path of the folder
             base_path = os.path.basename(os.path.normpath(folder))
 
@@ -68,19 +71,19 @@ class MainClass:
                 print(f"Error reading or invalid anagrafica file format in {folder}. Skipping.")
                 continue
 
-            # print(f"[+] Anagrafica data for {subject_number}: \n{anagrafica_data}")
-
             task_file_list = sorted(
                 [f.path for f in os.scandir(folder) if
                  f.is_file() and f.path.endswith(self.config.settings.file_extension)],
-                key=lambda x: len(x)
-            )
+                key=lambda x: len(x))
 
-            # print(f"[+] Task file list: {task_file_list}")
+            if self.verbose:
+                print(f"[+] Anagrafica data for SUBJECT {subject_number}: \n{anagrafica_data}")
+                print(f"[+] Task file list: {task_file_list}")
 
+            # Loop over the tasks in the folder of the subject
             for task_number, task in enumerate(task_file_list):
                 # Debug: computes only the "n" file in the folder
-                if task_number < 4:
+                if task_number < 1:
                     # -------------------Preprocessing Section------------------- #
                     task_dataframe = self.processor.load_and_process_csv(task)
 
@@ -104,57 +107,70 @@ class MainClass:
                                                            task_dataframe["Pressure"].to_numpy(),
                                                            background_images_list, task, self.config)
 
-                    # Print the csv data of the current task
-                    # print(f"\n[+] Task After Coordinates manipulation: \n {task_dataframe.head(10).to_string()} \n")
+                    if self.verbose:
+                        print(f"[+] Task {task_number + 1} dataframe: \n{task_dataframe.head(10)}")
 
-                    # -------------------Library Conversion Section------------------- #
-                    # Manipulate the dataframe to be ready for HandwritingSample library
-                    task_dataframe = convert_to_HandwritingSample_library(task_dataframe)
+                    if self.plot:
+                        pass
+                        # preprocessing.plot_data(task_dataframe, task, self.config)
 
-                    # Debug: print the data after the transformation
-                    # print(f"[+] Data after Transformation for HandwritingSample Library : \n"
-                    #       f"{task_dataframe.head(10).to_string()} \n")
+                    # region Feature Extraction
+                    if self.feature_extraction:
+                        # -------------------Library Conversion Section------------------- #
+                        # Manipulate the dataframe to be ready for HandwritingSample library
+                        task_dataframe = convert_to_HandwritingSample_library(task_dataframe)
 
-                    # Get the strokes using the HandwritingSample library
-                    # stroke_list = stroke_segmentation(task_dataframe)
+                        # Debug: print the data after the transformation
+                        if self.verbose:
+                            print(f"[+] Data after Transformation for HandwritingSample Library : \n"
+                                  f"{task_dataframe.head(10).to_string()} \n")
 
-                    # -------------------Feature Extraction Section------------------- #
-                    # Get the features using the HandwritingSample library from the task
-                    handwriting_feature_dict = statistical_feature_extraction(task_dataframe,
-                                                                              self.config.settings.in_air)
+                        # Get the strokes using the HandwritingSample library
+                        # stroke_list = stroke_segmentation(task_dataframe)
 
-                    task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
-                                          **anagrafica_data, "Task": task_number + 1}
+                        # -------------------Feature Extraction Section------------------- #
+                        # Get the features using the HandwritingSample library from the task
+                        handwriting_feature_dict = statistical_feature_extraction(task_dataframe,
+                                                                                  self.config.settings.in_air)
 
-                    # Concatenate the features extracted from the current task to the dataframe with incremented index
-                    subject_dataframe = pd.concat([subject_dataframe,
-                                                   pd.DataFrame(task_dict_complete, index=[0])],
-                                                  ignore_index=True)
+                        task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
+                                              **anagrafica_data, "Task": task_number + 1}
 
-                    # Stroke Approach feature extraction
-                    # stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_dataframe)
+                        # Concatenate the features extracted from current task to the dataframe with incremented index
+                        subject_dataframe = pd.concat([subject_dataframe,
+                                                       pd.DataFrame(task_dict_complete, index=[0])],
+                                                      ignore_index=True)
 
-                    # print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
+                        # Stroke Approach feature extraction
+                        # stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_dataframe)
 
-                    # Save the features extracted from the current task
-                    # save_data_to_csv(stroke_approach_dataframe, task_number + 1, folder, anagrafica_data, config)
+                        # print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
 
-        print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
+                        # Save the features extracted from the current task
+                        # save_data_to_csv(stroke_approach_dataframe, task_number + 1, folder, anagrafica_data, config)
+                    # endregion
 
-        # Order the dataframe by Task
-        subject_dataframe = subject_dataframe.sort_values(by=['Id', 'Task'])
+        if self.verbose and subject_dataframe.shape[0] > 0:
+            print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
+            print(f"[+] Subject dataframe shape: {subject_dataframe.shape}")
 
-        # Get the unique Task values
-        unique_task_values = subject_dataframe['Task'].unique()
+        # Check if subject_dataframe is empty
+        if self.feature_extraction:
+            # Order the dataframe by Task
+            subject_dataframe = subject_dataframe.sort_values(by=['Id', 'Task'])
 
-        # Loop over the unique Task values and extract the rows with the same Task value
-        for task in unique_task_values:
-            task_dataframe = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
+            # Get the unique Task values
+            unique_task_values = subject_dataframe['Task'].unique()
 
-            # Save the dataframe to csv into output_directory_csv
-            task_dataframe.to_csv(os.path.join(output_directory_csv, f"Task_{task}.csv"), index=False)
+            # Loop over the unique Task values and extract the rows with the same Task value
+            for task in unique_task_values:
+                task_dataframe = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
 
-            # print(f"[+] Task {task}: \n{task_dataframe.to_string()}")
+                # Save the dataframe to csv into output_directory_csv
+                task_dataframe.to_csv(os.path.join(output_directory_csv, f"Task_{task}.csv"), index=False)
+
+                if self.verbose:
+                    print(f"[+] Task {task}: \n{task_dataframe.to_string()}")
 
         return 0
 
