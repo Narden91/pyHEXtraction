@@ -216,13 +216,9 @@ def points_type_filtering(df: pd.DataFrame, points_type: str = "onpaper") -> pd.
     """
 
     if points_type == "onpaper":
-
         df = df.loc[df["Pressure"] != 0].reset_index(drop=True)
-
     elif points_type == "onair":
-
         df = df.loc[df["Pressure"] == 0].reset_index(drop=True)
-
     else:
         pass
 

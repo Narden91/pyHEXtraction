@@ -23,11 +23,22 @@ class MainClass:
         self.feature_extraction = config.settings.feature_extraction
         self.plot = config.settings.plotting
         self.task_list = config.settings.task_list
+        self.score = config.settings.score_file
+        self.overwrite_flag = config.settings.overwrite
+        self.subject_task_to_plot = config.settings.subject_task_to_plot
+        self.output_task_3d = config.settings.output_task_3d
 
     def run(self):
         data_source = self.processor.format_path_for_os(self.config.settings.data_source)
         background_images_folder = self.processor.format_path_for_os(self.config.settings.background_images_folder)
         output_directory_csv = self.processor.format_path_for_os(self.config.settings.output_directory_csv)
+        plotting_output_directory = self.processor.format_path_for_os(self.config.settings.output_directory_plots)
+        output_task_3d = self.processor.format_path_for_os(self.output_task_3d)
+
+        # Read the score file
+        score_df = pd.read_csv(self.score, delimiter=';')
+        score_df = score_df.fillna(-1)
+        score_df = score_df.astype(int)
 
         folders_in_data, message = self.processor.get_directory_contents(data_source, 'folders')
         if message:
@@ -60,7 +71,8 @@ class MainClass:
             # Load the anagrafica file
             anagrafica_file = self.processor.load_anagrafica(folder)
             if not anagrafica_file:
-                print(f"[+] No anagrafica file found in {folder}. Skipping.")
+                if self.verbose:
+                    print(f"[+] No anagrafica file found in {folder}. Skipping.")
 
                 # Add the subject number to the dataframe with NaN values
                 subject_dataframe = pd.concat([subject_dataframe,
@@ -71,13 +83,13 @@ class MainClass:
             # Read the anagrafica file
             anagrafica_data = self.processor.read_anagrafica(anagrafica_file)
             if not anagrafica_data:
-                print(f"Error reading or invalid anagrafica file format in {folder}. Skipping.")
+                if self.verbose:
+                    print(f"Error reading or invalid anagrafica file format in {folder}. Skipping.")
                 continue
 
-            task_file_list = sorted(
-                [f.path for f in os.scandir(folder) if
-                 f.is_file() and f.path.endswith(self.config.settings.file_extension)],
-                key=lambda x: len(x))
+            task_file_list = sorted([f.path for f in os.scandir(folder) if
+                                     f.is_file() and f.path.endswith(self.config.settings.file_extension)],
+                                    key=lambda x: len(x))
 
             if self.verbose:
                 print(f"[+] Anagrafica data for SUBJECT {subject_number}: \n{anagrafica_data}")
@@ -86,13 +98,41 @@ class MainClass:
             # Loop over the tasks in the folder of the subject
             for task_number, task in enumerate(task_file_list):
                 # Debug: computes only the files in the task_list
-                if task_number + 1 in self.task_list:
+                if task_number + 1 in self.task_list:  # Modify CONFIG for all tasks
                     # -------------------Preprocessing Section------------------- #
                     task_dataframe = self.processor.load_and_process_csv(task)
+
+                    # Add the subject label from the score file for the current task
+                    task_dataframe['Label'] = \
+                        score_df.loc[score_df['Id'] == subject_number, str(task_number + 1)].values[0]
 
                     # Filter the dataframe by the type of points (onair / onpaper)
                     # task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
 
+                    # region Plotting
+                    if self.plot:  # Debug: and subject_number == 82
+                        if self.verbose:
+                            print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
+
+                        # Create path for plotting information
+                        task_path_folder = os.path.join(plotting_output_directory, f"Task_{task_number + 1}")
+                        os.makedirs(task_path_folder, exist_ok=True)
+                        task_filename = os.path.join(task_path_folder, f"Subject_{subject_number}.csv")
+
+                        # Save the task_dataframe to csv if it does not exist
+                        if not os.path.exists(task_filename) or self.overwrite_flag:
+                            task_dataframe.to_csv(task_filename, index=False)
+
+                        # output_task_3d = os.path.join(output_task_3d, f"Task_{task_number + 1}")
+                        # os.makedirs(output_task_3d, exist_ok=True)
+
+                        # Plot Task in 3D and 2D
+                        if subject_number in self.subject_task_to_plot:
+
+                            plotting_module.plot_task(task_dataframe, subject_number, task_number + 1, output_task_3d)
+                    # endregion
+
+                    # region Image and Video Creation
                     if self.config.settings.use_images:
                         self.processor.process_images(folder, self.config.settings.images_extension,
                                                       background_images_list)
@@ -100,21 +140,15 @@ class MainClass:
                         preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(),
                                                              task_dataframe["PointY"].to_numpy(),
                                                              task_dataframe["Pressure"].to_numpy(),
-                                                             background_images_list[task_number+1], task, self.config)
+                                                             background_images_list[task_number + 1], task,
+                                                             self.config)
                         # Show image-video of the current task created from the csv
                         preprocessing.create_gif_from_data(task_dataframe["PointX"].to_numpy(),
                                                            task_dataframe["PointY"].to_numpy(),
                                                            task_dataframe["Pressure"].to_numpy(),
-                                                           background_images_list[task_number+1], task, self.config)
-
-                    if self.verbose:
-                        print(f"[+] Task {task_number + 1} dataframe: \n{task_dataframe.head(10).to_string()}")
-
-                    if self.plot:  # Debug: and subject_number == 82
-                        if self.verbose:
-                            print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
-
-                        plotting_module.plot_3d(task_dataframe, subject_number, task_number + 1)
+                                                           background_images_list[task_number + 1], task,
+                                                           self.config)
+                    # endregion
 
                     # region Feature Extraction
                     if self.feature_extraction:

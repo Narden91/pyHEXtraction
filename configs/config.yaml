@@ -32,9 +32,14 @@ settings:
   data_output: ..\\Output_image_folder
   background_images_folder: ..\\Task_image_background
   output_directory_csv: ..\\Output_csv_folder
+  output_directory_plots: ..\\Output_csv_for_plots
+  output_task_3d: ..\\Output_3D_folder
+  overwrite: False
+  score_file: ..\\score_2023.csv
   in_air: False
   verbose: False
   plotting: True
   feature_extraction: False
-  task_list: [10] # [10,11,12,13,21]
+  task_list: [10,11,12,13,21] # [10,11,12,13,21] [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
+  subject_task_to_plot: [138, 82, 97] # [138, 82, 97]
 
