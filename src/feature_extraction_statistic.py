@@ -1,8 +1,13 @@
+from pprint import pprint
+
 import numpy as np
 import pandas as pd
 from handwriting_features.features import HandwritingFeatures
+from handwriting_features.interface.featurizer import FeatureExtractor
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from os import devnull
+
+from handwriting_sample import HandwritingSample
 
 
 @contextmanager
@@ -13,41 +18,344 @@ def suppress_stdout_stderr():
             yield err, out
 
 
-def statistical_feature_extraction(task_dataframe: pd.DataFrame, in_air=False) -> dict:
+def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200) -> dict:
     """ Compute the statistical feature extraction for the task.
 
     Args:
         task_dataframe (pd.DataFrame): Dataframe containing the data for compute the global features
-        in_air (bool): Boolean to get the in air features
+        fs (int): Sampling frequency of the data in Hz
     Returns:
         feature_dataframe: dataframe containing the features of the global features
     """
 
-    # Avoid printing the HandwritingFeatures class output
+    features_pipeline = []
+
+    # Meta data Wacom One 13.3
+    meta_data = {"protocol_id": "dsa_2023",
+                 "device_type": "Wacom One 13.3",
+                 "device_driver": "2.1.0",
+                 "lpi": 2540,  # lines per inch
+                 "time_series_ranges": {
+                     "x": [0, 1920],
+                     "y": [0, 1080],
+                     "azimuth": [0, 180],
+                     "tilt": [0, 90],
+                     "pressure": [0, 32767]}}
+
+    # Avoid printing
     with suppress_stdout_stderr():
-        # Create a HandwritingFeatures object from the task dataframe to get the global features
-        feature_global_data = HandwritingFeatures.from_pandas_dataframe(task_dataframe)
+        handwriting_df = HandwritingSample.from_pandas_dataframe(task_dataframe)
+
+        # Transform the data to mm
+        handwriting_df.transform_axis_to_mm(conversion_type=HandwritingSample.transformer.LPI,
+                                            lpi_value=meta_data["lpi"],
+                                            shift_to_zero=False)
+
+        # Transform the azimuth and tilt to degrees
+        handwriting_df.transform_angle_to_degree(angle=HandwritingSample.TILT)
+        handwriting_df.transform_angle_to_degree(angle=HandwritingSample.AZIMUTH)
+
+        sample_values = np.expand_dims(handwriting_df.data_numpy_array, 0)
+        sample_labels = None
 
     # Get the kinematic features
-    kinematic_features_dict = get_kinematic_features(feature_global_data, in_air=in_air)
+    fs_kin = kinematic_features_pipeline()
 
-    # Get the dynamic features
-    dynamic_features_dict = get_dynamic_features(feature_global_data, in_air=in_air)
+    features_pipeline = features_pipeline + fs_kin
 
-    # Get the spatial features
-    spatial_features_dict = get_spatial_features(feature_global_data, in_air=in_air)
+    extractor_configuration = {"fs": fs, "logging_settings": {"soft_validation": True}}
 
-    # Get the temporal features
-    temporal_features_dict = get_temporal_features(feature_global_data, in_air=in_air)
+    with suppress_stdout_stderr():
+        extractor = FeatureExtractor(sample_values, sample_labels, **extractor_configuration)
+        extracted = extractor.extract(features_pipeline)
+    print(f"Features shape: {extracted['features'].shape}\n")
+    pprint(extracted)
 
-    # Get the composite features
-    composite_features_dict = get_composite_features(feature_global_data, in_air=in_air)
+    return
 
-    # Create a dictionary with the features of the task
-    features_dict = {**kinematic_features_dict, **dynamic_features_dict,
-                     **spatial_features_dict, **temporal_features_dict, **composite_features_dict}
 
-    return features_dict
+def kinematic_features_pipeline() -> list:
+    """ Get the kinematic features pipeline."""
+    features_pipeline = [
+        {
+            'name': 'velocity',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'axis': ['x', 'y', 'xy'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'acceleration',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'axis': ['x', 'y', 'xy'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'jerk',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'axis': ['x', 'y', 'xy'],
+                'in_air': [True, False]
+            }
+        }
+    ]
+
+    return features_pipeline
+
+
+def dynamic_features_pipeline() -> list:
+    """ Get the dynamic features pipeline."""
+    features_pipeline = [
+        {
+            'name': 'azimuth',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'tilt',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'pressure',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        }
+    ]
+
+    return features_pipeline
+
+
+def spatial_features_pipeline() -> list:
+    """ Get the spatial features pipeline."""
+    features_pipeline = [
+        {
+            'name': 'stroke_length',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'stroke_height',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'stroke_width',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'writing_length',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'writing_height',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'writing_width',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'vertical_peaks_indices',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_valleys_indices',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_peaks_values',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_valleys_values',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_peaks_velocity',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_valleys_velocity',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_peaks_distance',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_valleys_distance',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_peaks_duration',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'vertical_valleys_duration',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        }
+    ]
+
+    return features_pipeline
+
+
+def temporal_features_pipeline() -> list:
+    """ Get the temporal features pipeline."""
+    features_pipeline = [
+        {
+            'name': 'stroke_duration',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'ratio_of_stroke_durations',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'writing_duration',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'writing_duration_overall',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'ratio_of_writing_durations',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr'],
+                'in_air': [True, False]
+            }
+        },
+        {
+            'name': 'number_of_interruptions',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        },
+        {
+            'name': 'number_of_interruptions_relative',
+            'args': {
+                'statistics': ['mean', 'std', 'iqr']
+            }
+        }
+    ]
+
+    return features_pipeline
+
+
+def composite_features_pipeline() -> list:
+    """ Get the composite features pipeline. """
+
+    # TODO: Add other features
+    features_pipeline = [
+        {
+            'name': 'writing_tempo',
+            'args': {}
+        },
+        {
+            'name': 'writing_stops',
+            'args': {}
+        },
+        {
+            'name': 'number_of_changes_in_x_profile',
+            'args': {}
+        },
+        {
+            'name': 'number_of_changes_in_y_profile',
+            'args': {}
+        }
+
+    ]
+
+    return features_pipeline
+
+
+# def statistical_feature_extraction(task_dataframe: pd.DataFrame, in_air=False) -> dict:
+#     """ Compute the statistical feature extraction for the task.
+#
+#     Args:
+#         task_dataframe (pd.DataFrame): Dataframe containing the data for compute the global features
+#         in_air (bool): Boolean to get the in air features
+#     Returns:
+#         feature_dataframe: dataframe containing the features of the global features
+#     """
+#
+#     # Avoid printing the HandwritingFeatures class output
+#     with suppress_stdout_stderr():
+#         # Create a HandwritingFeatures object from the task dataframe to get the global features
+#         feature_global_data = HandwritingFeatures.from_pandas_dataframe(task_dataframe)
+#
+#     # Get the kinematic features
+#     kinematic_features_dict = get_kinematic_features(feature_global_data, in_air=in_air)
+#
+#     # Get the dynamic features
+#     dynamic_features_dict = get_dynamic_features(feature_global_data, in_air=in_air)
+#
+#     # Get the spatial features
+#     spatial_features_dict = get_spatial_features(feature_global_data, in_air=in_air)
+#
+#     # Get the temporal features
+#     temporal_features_dict = get_temporal_features(feature_global_data, in_air=in_air)
+#
+#     # Get the composite features
+#     composite_features_dict = get_composite_features(feature_global_data, in_air=in_air)
+#
+#     # Create a dictionary with the features of the task
+#     features_dict = {**kinematic_features_dict, **dynamic_features_dict,
+#                      **spatial_features_dict, **temporal_features_dict, **composite_features_dict}
+#
+#     return features_dict
 
 
 def get_kinematic_features(data: HandwritingFeatures, in_air=False) -> dict:

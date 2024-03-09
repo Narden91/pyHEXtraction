@@ -1,18 +1,17 @@
 import sys
-
-sys.dont_write_bytecode = True
-
+from pathlib import Path
 import hydra
 import os
 from tqdm import tqdm
 from data_processor import DataProcessor
 import pandas as pd
-import numpy as np
 import src.plotting_module as plotting_module
 import preprocessing
-from data_conversion_module import convert_to_HandwritingSample_library, stroke_segmentation
+from data_conversion_module import convert_to_HandwritingSample_library_format, stroke_segmentation
 from feature_extraction_strokes import stroke_approach_feature_extraction
 from feature_extraction_statistic import statistical_feature_extraction
+
+sys.dont_write_bytecode = True
 
 
 class MainClass:
@@ -20,6 +19,9 @@ class MainClass:
         self.config = config
         self.processor = DataProcessor(config)
         self.verbose = config.settings.verbose
+        self.show_images = config.settings.show_images
+        self.show_gif = config.settings.show_gif
+        self.elaborate_images = config.settings.create_online_images
         self.feature_extraction = config.settings.feature_extraction
         self.plot = config.settings.plotting
         self.task_list = config.settings.task_list
@@ -27,6 +29,25 @@ class MainClass:
         self.overwrite_flag = config.settings.overwrite
         self.subject_task_to_plot = config.settings.subject_task_to_plot
         self.output_task_3d = config.settings.output_task_3d
+
+    @staticmethod
+    def get_subject_number(folder):
+        try:
+            return int(folder.name.split("_")[2])
+        except ValueError as e:
+            raise ValueError(f"Invalid folder format: {folder.name}") from e
+
+    def load_and_process_anagrafica(self, folder):
+        anagrafica_file = self.processor.load_anagrafica(folder)
+        if anagrafica_file:
+            return self.processor.read_anagrafica(anagrafica_file)
+        else:
+            if self.verbose:
+                print(f"[+] No anagrafica file found in {folder}. Skipping.")
+            return None
+
+    def get_task_file_list(self, folder):
+        return sorted(folder.glob(f'*{self.config.settings.file_extension}'), key=lambda x: len(x.name))
 
     def run(self):
         data_source = self.processor.format_path_for_os(self.config.settings.data_source)
@@ -36,177 +57,165 @@ class MainClass:
         output_task_3d = self.processor.format_path_for_os(self.output_task_3d)
 
         # Read the score file
-        score_df = pd.read_csv(self.score, delimiter=';')
-        score_df = score_df.fillna(-1)
-        score_df = score_df.astype(int)
+        score_df = pd.read_csv(self.score, delimiter=';').fillna(-1).astype(int)
 
         folders_in_data, message = self.processor.get_directory_contents(data_source, 'folders')
         if message:
             print(message)
             return 0
 
-        background_images_list = []
-        if self.config.settings.use_images:
-            background_images_list, image_message = self.processor.get_directory_contents(background_images_folder,
-                                                                                          'files')
+        if self.elaborate_images:
+            bckg_images_list, image_message = self.processor.get_directory_contents(background_images_folder,
+                                                                                    'files')
             if image_message:
                 print(image_message)
                 return 0
+        else:
+            bckg_images_list = [None] * len(self.task_list)
 
         # Initialize the dataframe for the features
         subject_dataframe = pd.DataFrame()
+        subjects_missing_anagrafica = set()
+
+        print(f"[+] Folders in data: {len(folders_in_data)}") if self.verbose else None
 
         # Loop over Subject's folders
         for num_folder, folder in enumerate(tqdm(folders_in_data, desc="Processing Subject Folder:"), start=1):
-            # Get the base path of the folder
-            base_path = os.path.basename(os.path.normpath(folder))
+            if num_folder < 2:
+                folder = Path(folder)
+                subject_number = self.get_subject_number(folder=folder)
 
-            # Get the subject number from the folder name
-            try:
-                subject_number = int(base_path.split("_")[2])
-            except ValueError:
-                print(f"Invalid folder format: {base_path}")
-                return 0
+                anagrafica_data = self.load_and_process_anagrafica(folder=folder)
+                if not anagrafica_data:
+                    subjects_missing_anagrafica.add(subject_number)
+                    print(f"[-] Anagrafica data missing for SUBJECT {subject_number}. Skipping.")
+                    continue
 
-            # Load the anagrafica file
-            anagrafica_file = self.processor.load_anagrafica(folder)
-            if not anagrafica_file:
-                if self.verbose:
-                    print(f"[+] No anagrafica file found in {folder}. Skipping.")
-
-                # Add the subject number to the dataframe with NaN values
-                subject_dataframe = pd.concat([subject_dataframe,
-                                               pd.DataFrame({"Id": subject_number, "Task": 0}, index=[0])],
-                                              ignore_index=True)
-                continue
-
-            # Read the anagrafica file
-            anagrafica_data = self.processor.read_anagrafica(anagrafica_file)
-            if not anagrafica_data:
-                if self.verbose:
-                    print(f"Error reading or invalid anagrafica file format in {folder}. Skipping.")
-                continue
-
-            task_file_list = sorted([f.path for f in os.scandir(folder) if
-                                     f.is_file() and f.path.endswith(self.config.settings.file_extension)],
-                                    key=lambda x: len(x))
-
-            if self.verbose:
-                print(f"[+] Anagrafica data for SUBJECT {subject_number}: \n{anagrafica_data}")
-                print(f"[+] Task file list: {task_file_list}")
-
-            # Loop over the tasks in the folder of the subject
-            for task_number, task in enumerate(task_file_list):
-                # Debug: computes only the files in the task_list
-                if task_number + 1 in self.task_list:  # Modify CONFIG for all tasks
-                    # -------------------Preprocessing Section------------------- #
-                    task_dataframe = self.processor.load_and_process_csv(task)
-
-                    # Add the subject label from the score file for the current task
-                    task_dataframe['Label'] = \
-                        score_df.loc[score_df['Id'] == subject_number, str(task_number + 1)].values[0]
-
-                    # Filter the dataframe by the type of points (onair / onpaper)
-                    # task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
-
-                    # region Plotting
-                    if self.plot:  # Debug: and subject_number == 82
-                        if self.verbose:
-                            print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
-
-                        # Create path for plotting information
-                        task_path_folder = os.path.join(plotting_output_directory, f"Task_{task_number + 1}")
-                        os.makedirs(task_path_folder, exist_ok=True)
-                        task_filename = os.path.join(task_path_folder, f"Subject_{subject_number}.csv")
-
-                        # Save the task_dataframe to csv if it does not exist
-                        if not os.path.exists(task_filename) or self.overwrite_flag:
-                            task_dataframe.to_csv(task_filename, index=False)
-
-                        # output_task_3d = os.path.join(output_task_3d, f"Task_{task_number + 1}")
-                        # os.makedirs(output_task_3d, exist_ok=True)
-
-                        # Plot Task in 3D and 2D
-                        if subject_number in self.subject_task_to_plot:
-
-                            plotting_module.plot_task(task_dataframe, subject_number, task_number + 1, output_task_3d)
-                    # endregion
-
-                    # region Image and Video Creation
-                    if self.config.settings.use_images:
-                        self.processor.process_images(folder, self.config.settings.images_extension,
-                                                      background_images_list)
-                        # Show image of the current task created from the csv
-                        preprocessing.create_image_from_data(task_dataframe["PointX"].to_numpy(),
-                                                             task_dataframe["PointY"].to_numpy(),
-                                                             task_dataframe["Pressure"].to_numpy(),
-                                                             background_images_list[task_number + 1], task,
-                                                             self.config)
-                        # Show image-video of the current task created from the csv
-                        preprocessing.create_gif_from_data(task_dataframe["PointX"].to_numpy(),
-                                                           task_dataframe["PointY"].to_numpy(),
-                                                           task_dataframe["Pressure"].to_numpy(),
-                                                           background_images_list[task_number + 1], task,
-                                                           self.config)
-                    # endregion
-
-                    # region Feature Extraction
-                    if self.feature_extraction:
-                        # -------------------Library Conversion Section------------------- #
-                        # Manipulate the dataframe to be ready for HandwritingSample library
-                        task_dataframe = convert_to_HandwritingSample_library(task_dataframe)
-
-                        # Debug: print the data after the transformation
-                        if self.verbose:
-                            print(f"[+] Data after Transformation for HandwritingSample Library : \n"
-                                  f"{task_dataframe.head(10).to_string()} \n")
-
-                        # Get the strokes using the HandwritingSample library
-                        # stroke_list = stroke_segmentation(task_dataframe)
-
-                        # -------------------Feature Extraction Section------------------- #
-                        # Get the features using the HandwritingSample library from the task
-                        handwriting_feature_dict = statistical_feature_extraction(task_dataframe,
-                                                                                  self.config.settings.in_air)
-
-                        task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
-                                              **anagrafica_data, "Task": task_number + 1}
-
-                        # Concatenate the features extracted from current task to the dataframe with incremented index
-                        subject_dataframe = pd.concat([subject_dataframe,
-                                                       pd.DataFrame(task_dict_complete, index=[0])],
-                                                      ignore_index=True)
-
-                        # Stroke Approach feature extraction
-                        # stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_dataframe)
-
-                        # print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
-
-                        # Save the features extracted from the current task
-                        # save_data_to_csv(stroke_approach_dataframe, task_number + 1, folder, anagrafica_data, config)
-                    # endregion
-
-        if self.verbose and subject_dataframe.shape[0] > 0:
-            print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
-            print(f"[+] Subject dataframe shape: {subject_dataframe.shape}")
-
-        # Check if subject_dataframe is empty
-        if self.feature_extraction:
-            # Order the dataframe by Task
-            subject_dataframe = subject_dataframe.sort_values(by=['Id', 'Task'])
-
-            # Get the unique Task values
-            unique_task_values = subject_dataframe['Task'].unique()
-
-            # Loop over the unique Task values and extract the rows with the same Task value
-            for task in unique_task_values:
-                task_dataframe = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
-
-                # Save the dataframe to csv into output_directory_csv
-                task_dataframe.to_csv(os.path.join(output_directory_csv, f"Task_{task}.csv"), index=False)
+                task_file_list = self.get_task_file_list(folder=folder)
 
                 if self.verbose:
-                    print(f"[+] Task {task}: \n{task_dataframe.to_string()}")
+                    print(f"[+] Anagrafica data for SUBJECT {subject_number}: \n {anagrafica_data}")
+                    print(f"[+] Subject folder: {folder}")
+                    print(f"[+] Task file list: {len(task_file_list)}")
+
+                # if subjects_missing_anagrafica:
+                #     print(f"[-] Subjects missing anagrafica data:{sorted(subjects_missing_anagrafica)}")
+
+                # Loop over the tasks in the folder of the subject
+                for task_number, task in enumerate(task_file_list):
+                    # Debug: computes only the files in the task_list
+                    if task_number + 1 in self.task_list:  # Modify CONFIG for all tasks
+                        # -------------------Preprocessing Section------------------- #
+                        task_df = self.processor.load_and_process_csv(task_file=task)
+
+                        # Add the subject label from the score file for the current task
+                        # task_dataframe['Label'] = \
+                        #     score_df.loc[score_df['Id'] == subject_number, str(task_number + 1)].values[0]
+
+                        sbj_task_label = score_df.loc[score_df['Id'] == subject_number, str(task_number + 1)].values[0]
+
+                        # Filter the dataframe by the type of points (onair / onpaper)
+                        # task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
+
+                        # region Plotting
+                        if self.plot:  # Assuming self.plot indicates whether to plot or not
+                            if self.verbose:
+                                print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
+
+                            task_path_folder = Path(plotting_output_directory) / f"Task_{task_number + 1}"
+                            task_path_folder.mkdir(parents=True, exist_ok=True)
+                            task_filename = task_path_folder / f"Subject_{subject_number}.csv"
+
+                            # Save the task_dataframe to csv if it does not exist or overwrite is enabled
+                            if not task_filename.exists() or self.overwrite_flag:
+                                task_df.to_csv(task_filename, index=False)
+
+                            # Plot Task in 3D and 2D if the subject is in the specified list to plot
+                            if subject_number in self.subject_task_to_plot:
+                                plotting_module.plot_task(df=task_df,
+                                                          subject_number=subject_number,
+                                                          task_number=task_number + 1,
+                                                          output_directory=output_task_3d)
+                        # endregion
+
+                        # region Image and GIF Creation
+                        if self.elaborate_images:
+                            self.processor.process_images(folder, self.config.settings.images_extension, self.verbose)
+
+                            # Show image of the current task created from the csv
+                            preprocessing.create_image_from_data(x=task_df["PointX"].to_numpy(),
+                                                                 y=task_df["PointY"].to_numpy(),
+                                                                 pressure=task_df["Pressure"].to_numpy(),
+                                                                 background_image=bckg_images_list[task_number],
+                                                                 file_path=task, show_image=self.show_images,
+                                                                 config=self.config)
+
+                            # Show image-video of the current task created from the csv
+                            if self.show_gif:
+                                preprocessing.create_gif_from_data(x=task_df["PointX"].to_numpy(),
+                                                                   y=task_df["PointY"].to_numpy(),
+                                                                   pressure=task_df["Pressure"].to_numpy(),
+                                                                   background_image=bckg_images_list[task_number],
+                                                                   file_path=task,
+                                                                   config=self.config)
+                        # endregion
+
+                        # region Feature Extraction
+                        if self.feature_extraction:
+                            # -------------------Library Conversion Section------------------- #
+                            # Manipulate the dataframe to be ready for HandwritingSample library
+                            task_df = convert_to_HandwritingSample_library_format(task_df, self.verbose)
+
+                            if self.verbose:
+                                print(f"[+] Data after Transformation for HandwritingSample Library : \n"
+                                      f"{task_df.head(10).to_string()} \n")
+
+                            # Get the strokes using the HandwritingSample library
+                            # stroke_list = stroke_segmentation(data_source=task_df, meta_data_enabled=True,
+                            #                                   verbose=self.verbose)
+
+                            # # -------------------Feature Extraction Section------------------- #
+                            # Get the features using the HandwritingSample library from the task
+                            handwriting_feature_dict = statistical_feature_extraction(task_dataframe=task_df)
+
+                            # task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
+                            #                       **anagrafica_data, "Task": task_number + 1}
+                            #
+                            # # Concatenate the feat extracted from current task to the dataframe with incremented index
+                            # subject_dataframe = pd.concat([subject_dataframe,
+                            #                                pd.DataFrame(task_dict_complete, index=[0])],
+                            #                               ignore_index=True)
+                            #
+                            # # Stroke Approach feature extraction
+                            # stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_df)
+                            #
+                            # print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
+
+                            # Save the features extracted from the current task
+                            # save_data_to_csv(stroke_approach_dataframe, task_number + 1, folder, anagrafica_data, config)
+                        # endregion
+
+            # if self.verbose and subject_dataframe.shape[0] > 0:
+            #     print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
+            #     print(f"[+] Subject dataframe shape: {subject_dataframe.shape}")
+            #
+            # # Check if subject_dataframe is empty
+            # if self.feature_extraction:
+            #     # Order the dataframe by Task
+            #     subject_dataframe = subject_dataframe.sort_values(by=['Id', 'Task'])
+            #
+            #     # Get the unique Task values
+            #     unique_task_values = subject_dataframe['Task'].unique()
+            #
+            #     # Loop over the unique Task values and extract the rows with the same Task value
+            #     for task in unique_task_values:
+            #         task_df = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
+            #
+            #         # Save the dataframe to csv into output_directory_csv
+            #         task_df.to_csv(os.path.join(output_directory_csv, f"Task_{task}.csv"), index=False)
+            #
+            #         if self.verbose:
+            #             print(f"[+] Task {task}: \n{task_df.to_string()}")
 
         return 0
 

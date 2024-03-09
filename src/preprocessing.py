@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import cv2
@@ -75,56 +77,54 @@ def calculate_age(date_string):
 
 
 def get_images_in_folder(images_folder_path: str, image_extension=".png") -> list:
-    # Get all the images in the folder
-    images_file_list = [f.path for f in os.scandir(images_folder_path) if
-                        f.is_file() and f.path.endswith(image_extension)]
+    images_folder = Path(images_folder_path)
 
-    # Sort by filename
-    images_file_list = sorted(images_file_list, key=lambda x: len(x))
+    # Get all the images with the specified extension in the folder
+    images_file_list = [f for f in images_folder.glob(f'*{image_extension}') if f.is_file()]
+
+    # Sort by filename length
+    images_file_list.sort(key=lambda x: len(x.name))
+
+    # Convert Path objects to strings
+    images_file_list = [f.as_posix() for f in images_file_list]
 
     return images_file_list
 
 
 def process_images_files(images_folder_path: str, image_extension: str) -> None:
     """
-    It takes a folder path and an image extension as input, and then it crops and resizes all the images
-    in the folder
-    
-    :param images_folder_path: The path to the folder containing the images you want to process
-    :type images_folder_path: str
-    :param image_extension: The extension of the image files you want to process
-    :type image_extension: str
+    Crop and resize all images in the folder to match the specified size if they don't already.
+
+    :param images_folder_path: The path to the folder containing the images to process.
+    :param image_extension: The extension of the image files to process.
     """
+    images_folder = Path(images_folder_path)
+    images_file_list = list(images_folder.glob(f'*{image_extension}'))
 
-    # Get alle the images in the folder
-    images_file_list = [f.path for f in os.scandir(images_folder_path) if f.is_file() and
-                        f.path.endswith(image_extension)]
+    # Sort the images by filename length
+    images_file_list.sort(key=lambda x: len(x.name))
 
-    # Sort by filename
-    images_file_list = sorted(images_file_list, key=lambda x: len(x))
-
-    # Loop through the images and crop and resize them if they don't match the size 1920x1080
-    for file in images_file_list:
-        crop_and_resize_image(file, file)
+    # Process each image file
+    for image_path in images_file_list:
+        crop_and_resize_image(image_path, image_path)
 
 
-def crop_and_resize_image(source_path: str, destination_path: str) -> None:
+def crop_and_resize_image(source_path: Path, destination_path: str) -> None:
     """
-    It reads an image from the specified source path, crops it to the specified coordinates, resizes it
-    to the specified dimensions, and saves it to the specified destination path
-    
+    It reads an image from the specified source path, crops it to the specified coordinates,
+    resizes it to the specified dimensions, and saves it to the specified destination path
+
     :param source_path: The path to the image you want to crop and resize
-    :type source_path: str
+    :type source_path: Path
     :param destination_path: The path to the destination image
     :type destination_path: str
     """
     try:
         # Read the image
-        img = cv2.imread(source_path)
+        img = cv2.imread(str(source_path))  # Convert source_path to string
 
         # Get image dimensions
         height, width, channels = img.shape
-
         # print(f"Width: {width} \t Height: {height} \n")
 
         if height != HEIGHT_IMAGE and width != WIDTH_IMAGE:
@@ -135,7 +135,7 @@ def crop_and_resize_image(source_path: str, destination_path: str) -> None:
             resized = cv2.resize(cropped, (WIDTH_IMAGE, HEIGHT_IMAGE))
 
             # Save the resized image
-            cv2.imwrite(destination_path, resized)
+            cv2.imwrite(str(destination_path), resized)
         else:
             pass
     except FileNotFoundError:
@@ -198,6 +198,8 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
 
         task_data['Time'] = task_data['Time'] * (1 / CLOCK)
 
+        # print(f"Task Data loaded: \n{task_data.head(5).to_string()}")
+
         return task_data
 
     except FileNotFoundError:
@@ -234,12 +236,11 @@ def coordinates_manipulation(data: pd.DataFrame) -> pd.DataFrame:
     :type data: pd.DataFrame
     :return: The x, y, and pressure arrays.
     """
-
     # Correct the mismatched origin between Digitizer and Screen
-    # For plotting -> PointY must be uncommented
-    # For Image -> PointY must be commented
+    # For plotting -> PointY must be commented
+    # For Image -> PointY must be uncommented
     data["PointX"] = data.PointX.apply(lambda x_point: X_DIGITIZER - x_point)
-    # data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
+    data["PointY"] = data.PointY.apply(lambda y_point: Y_DIGITIZER - y_point)
 
     # Filter Points from dataframe
     x_coordinates_array = data["PointX"].to_numpy()
@@ -299,7 +300,8 @@ def resize_with_aspect_ratio(image, width=None, height=None, inter=cv2.INTER_ARE
     return cv2.resize(image, dim, interpolation=inter)
 
 
-def create_image_from_data(x: np.array, y: np.array, pressure: np.array, background_image: str, file_path: str,
+def create_image_from_data(x: np.array, y: np.array, pressure: np.array, background_image: str,
+                           file_path: str, show_image: bool,
                            config) -> None:
     """
     It takes 3 arrays and a string as input, and returns an image of the drawing.
@@ -314,6 +316,8 @@ def create_image_from_data(x: np.array, y: np.array, pressure: np.array, backgro
     :type background_image: str
     :param file_path: The path of the file
     :type file_path: str
+    :param show_image: A boolean to show the image
+    :type show_image: bool
     :param config: The configuration file
     :type config: dict
     :return: None
@@ -327,8 +331,11 @@ def create_image_from_data(x: np.array, y: np.array, pressure: np.array, backgro
     thickness_onair = 1
     color_onair = [0, 255, 0]
 
-    # Read Background Image
-    image = cv2.imread(background_image)
+    # Read Background Image if it is not None
+    if background_image is not None:
+        image = cv2.imread(background_image)
+    else:
+        image = np.zeros((HEIGHT_IMAGE, WIDTH_IMAGE, 3), np.uint8)
 
     # Merge 2 array 
     points = np.column_stack((x, y))
@@ -344,19 +351,19 @@ def create_image_from_data(x: np.array, y: np.array, pressure: np.array, backgro
         else:
             cv2.line(image, start, end, color_onair, thickness_onair)
 
-    # Show the draw process in the Window
-    cv2.imshow(file_path, image)
-
-    cv2.waitKey(0)
+    if show_image:
+        # Show the draw process in the Window
+        cv2.imshow(str(file_path), image)
+        cv2.waitKey(0)
 
     # Save the image
-    saving_image(image, file_path, config)
+    saving_image(image=image, path_file=str(file_path), config=config)
 
     return None
 
 
-def create_gif_from_data(x: np.array, y: np.array, pressure: np.array, background_image: str, file_path: str,
-                         config) -> None:
+def create_gif_from_data(x: np.array, y: np.array, pressure: np.array, background_image: str,
+                         file_path: str, config) -> None:
     """
     > It takes in 3 arrays, and creates a video-like from them
     > Showing how the tasks have been built
@@ -385,7 +392,7 @@ def create_gif_from_data(x: np.array, y: np.array, pressure: np.array, backgroun
     color_onair = [0, 255, 0]
 
     # Read Background Image
-    image = cv2.imread(background_image)
+    image = cv2.imread(str(background_image))
 
     # Merge 2 array 
     points = np.column_stack((x, y))
@@ -401,8 +408,8 @@ def create_gif_from_data(x: np.array, y: np.array, pressure: np.array, backgroun
         else:
             cv2.line(image, start, end, color_onair, thickness_onair)
 
-            # Show the draw process in the Window
-        cv2.imshow(file_path, image)
+        # Show the draw process in the Window
+        cv2.imshow(str(file_path), image)
 
         # Pause the draw once finished
         if i == len(points) - 1:
@@ -411,53 +418,41 @@ def create_gif_from_data(x: np.array, y: np.array, pressure: np.array, backgroun
             cv2.waitKey(1)
 
     # Save the image
-    saving_image(image, file_path, config)
+    # saving_image(image=image, path_file=str(file_path), config=config)
 
     return None
 
 
-def saving_image(image, original_filename: str, config) -> None:
+def saving_image(image: np.array, path_file: str, config: dict) -> None:
     """
-    It takes an image and a filename as input, and saves the image in the output folder with the same
-    name as the original file
-    
-    :param image: the image to be saved
-    :type image: np.array
-    :param original_filename: The full path to the original image
-    :type original_filename: str
-    :param config: The configuration file
-    :type config: dict
+    Saves an image in the output folder with the same name as the original file, based on a configuration.
+
+    :param image: The image to be saved.
+    :param path_file: The full path to the original image.
+    :param config: The configuration dict containing settings including the output directory and image extension.
     :return: None
     """
+    output_folder = Path(config.settings.data_output)
+    output_folder.mkdir(parents=True, exist_ok=True)
 
-    # Check if exists OUTPUT_FOLDER
-    if not os.path.exists(config.settings.data_output):
-        os.makedirs(config.settings.data_output)
+    original_path = Path(path_file)
+    basename = original_path.stem  # Gets the file name without extension
 
-    # Extract the filename from the complete path
-    basename = os.path.splitext(os.path.basename(original_filename))[0]
+    # Extract task base name, assuming it's the part before the first '_'
+    task_basename = basename.split('_')[0]
 
-    # obtain Task_#
-    basename = basename.split('_')[0]
+    # Retrieve the original subfolder name where the file was located
+    original_subfolder_name = original_path.parent.name
+    sub_dir_output = output_folder / original_subfolder_name
+    sub_dir_output.mkdir(exist_ok=True)
 
-    # Retrieve the original folder name of the task
-    original_subfolder_name = os.path.split(os.path.dirname(original_filename))[1]
+    filename = f"{task_basename}{config.settings.images_extension}"
 
-    # Create if not exists the subfolder of the tasks
-    sub_dir_output = os.path.join(config.settings.data_output, original_subfolder_name)
+    # Complete path where the image will be saved
+    complete_path = sub_dir_output / filename
 
-    if not os.path.exists(sub_dir_output):
-        os.makedirs(sub_dir_output)
-
-    # create the filename based on the image format desired
-    filename = basename + config.settings.images_extension
-
-    # Join the strings to obtain the complete path to save the image
-    complete_path = os.path.join(sub_dir_output, filename)
-
-    cv2.imwrite(complete_path, image)
-
-    return None
+    # Save the image
+    cv2.imwrite(str(complete_path), image)
 
 
 

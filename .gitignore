@@ -172,3 +172,4 @@ poetry.toml
 ### Directories ###
 data/*
 Output_image_folder/*
+

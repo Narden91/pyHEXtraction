@@ -25,21 +25,23 @@ hydra:
   output_subdir: null
   
 settings:
-  data_source: ..\\data
+  data_source: ../data
   file_extension: .csv
-  use_images: False
+  create_online_images: False # True / False
+  show_images: False # True / False
+  show_gif: False # True / False
   images_extension: .png
-  data_output: ..\\Output_image_folder
-  background_images_folder: ..\\Task_image_background
-  output_directory_csv: ..\\Output_csv_folder
-  output_directory_plots: ..\\Output_csv_for_plots
-  output_task_3d: ..\\Output_3D_folder
+  data_output: ../Output_image_folder
+  background_images_folder: ../Task_image_background
+  output_directory_csv: ../Output_csv_folder
+  output_directory_plots: ../Output_csv_for_plots
+  output_task_3d: ../Output_3D_folder
   overwrite: False
-  score_file: ..\\score_2023.csv
-  in_air: False
+  score_file: ../score_2023.csv
+  in_air: False # if True, the task will be processed for InAir data only else for OnPaper data
   verbose: False
-  plotting: True
-  feature_extraction: False
-  task_list: [10,11,12,13,21] # [10,11,12,13,21] [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
-  subject_task_to_plot: [138, 82, 97] # [138, 82, 97]
+  plotting: False # enable plotting for the tasks
+  feature_extraction: True # enable feature extraction for the tasks
+  task_list: [1]  # list of tasks to be processed
+  subject_task_to_plot: [138, 82, 97]  # list of subjects to be plotted
 

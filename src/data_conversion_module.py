@@ -54,20 +54,25 @@ def tilt_azimuth_transformation(df: pd.DataFrame):
     return df
 
 
-def convert_to_HandwritingSample_library(data_source: pd.DataFrame) -> pd.DataFrame:
+def convert_to_HandwritingSample_library_format(data_source: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """ Convert the data from the csv to a HandwritingSample object using the HandwritingFeatures library
 
     Args:
         data_source (pd.DataFrame): Dataframe containing the data from the csv file
+        verbose (bool): If True, print the dataframe before and after the transformation
     Returns:
         pd.DataFrame: Dataframe containing the data to HandwritingSample object-ready
     """
+
+    print(f"Dataframe before transformation: \n{data_source.head(5).to_string()}") if verbose else None
 
     # Create pen_status column
     data_source['pen_status'] = np.where(data_source['Pressure'] != 0, 1, 0)
 
     # Correct tilt and azimuth values
     data_source = tilt_azimuth_transformation(data_source)
+
+    print(f"Dataframe after adding column: \n{data_source.head(5).to_string()}") if verbose else None
 
     # Extract, Reorder and Rename the columns of the dataframe
     data_source = data_source.iloc[:, [1, 2, 0, 10, 6, 11, 4]]
@@ -111,47 +116,50 @@ def get_handwriting_feature_dataframe(data_source: pd.DataFrame) -> pd.DataFrame
     return handwriting_task
 
 
-def stroke_segmentation(data_source: pd.DataFrame):
+def stroke_segmentation(data_source: pd.DataFrame, meta_data_enabled: bool = False,
+                        verbose: bool = False):
     """
     Segments the data into strokes based on HandwritingSample library
     Segmentation is done based on the pen_status column (pen-up and pen-down)
 
     Args:
         data_source (pd.DataFrame): Dataframe containing the data
+        meta_data_enabled (bool): If True, add the metadata to the HandwritingSample object
+        verbose (bool): If True, print the dataframes of the strokes
     Returns:
         pd.DataFrame: Dataframe containing the data segmented into strokes
     """
-
-    # Meta data of the device Wacom One 13.3
-    # meta_data = {"protocol_id": "dsa_2023",
-    #              "device_type": "Wacom One 13.3",
-    #              "device_driver": "2.1.0",
-    #              "lpi": 2540,  # lines per inch
-    #              "time_series_ranges": {
-    #                  "x": [0, 1920],
-    #                  "y": [0, 1080],
-    #                  "azimuth": [0, 180],
-    #                  "tilt": [0, 90],
-    #                  "pressure": [0, 32767]}}
 
     # Avoid printing the HandwritingFeatures class output
     with suppress_stdout_stderr():
         # Create a HandwritingSample object from the dataframe
         handwriting_task = HandwritingSample.from_pandas_dataframe(data_source)
 
-        # print(f"handwriting_task: {handwriting_task}")
+    if meta_data_enabled:
+        print(f"Adding metadata to the HandwritingSample object")
+        # Meta data of the device Wacom One 13.3
+        meta_data = {"protocol_id": "dsa_2023",
+                     "device_type": "Wacom One 13.3",
+                     "device_driver": "2.1.0",
+                     "lpi": 2540,  # lines per inch
+                     "time_series_ranges": {
+                         "x": [0, 1920],
+                         "y": [0, 1080],
+                         "azimuth": [0, 180],
+                         "tilt": [0, 90],
+                         "pressure": [0, 32767]}}
 
-    # Add the metadata to the HandwritingSample object
-    # handwriting_task.add_meta_data(meta_data=meta_data)
+        # Add the metadata to the HandwritingSample object
+        handwriting_task.add_meta_data(meta_data=meta_data)
 
-    # Transform all units
-    # handwriting_task.transform_all_units()
+        # Transform all units
+        handwriting_task.transform_all_units()
 
-    # get all strokes sequentially based on how the task was performed
+    # Get all strokes sequentially based on how the task was performed
     strokes = handwriting_task.get_strokes()
 
     # Print stroke's dataframes
-    # print_strokes_dataframes(strokes)
+    print_strokes_dataframes(strokes) if verbose else None
 
     # get on surface strokes
     # stroke_on_surface = handwriting_task.get_on_surface_strokes()
@@ -172,6 +180,23 @@ def stroke_segmentation(data_source: pd.DataFrame):
     # handwriting_task.plot_all_data()
 
     return strokes
+
+
+def update_stroke_list_for_all_computation(stroke_list: list) -> list:
+    """ Update the first element of the list to be used with the HandwritingSample library
+    The first element of the list is the stroke type (OnSurface or InAir)
+    The HandwritingSample library uses the following strings: "on_surface" and "in_air"
+
+    Args:
+        stroke_list (list): List of the strokes
+    Returns:
+        list: List of the strokes with the updated first element
+    """
+    # Create a new list of tuples with the updated first elements
+    updated_stroke_list = [(get_new_first_element(old_first_element), second_element) for
+                           old_first_element, second_element in stroke_list]
+
+    return updated_stroke_list
 
 
 def print_strokes_dataframes(stroke_list: list):
@@ -197,3 +222,7 @@ def print_strokes_dataframes(stroke_list: list):
 
     return None
 
+
+def get_new_first_element(old_first_element):
+
+    return "on_surface" if old_first_element == "in_air" else old_first_element

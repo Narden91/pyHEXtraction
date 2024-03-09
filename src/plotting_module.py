@@ -103,6 +103,9 @@ def plot_task(df, subject_number, task_number, output_directory: str = "Plotting
 
     z_max = df['Pressure'].max()
 
+    # get the label single values for the task
+    label = df['Label'].iloc[0]
+
     ax.set_xlim(0, 1920)
     ax.set_ylim(0, 1080)
     ax.set_zlim(0, z_max)
@@ -127,7 +130,7 @@ def plot_task(df, subject_number, task_number, output_directory: str = "Plotting
     ax1.set_ylim(0, 1080)
     ax1.set_title('2D Plot Task Execution')
     ax1.grid(True)
-    fig.suptitle(f'Subject {subject_number} - Task {task_number}', fontsize=20)
+    fig.suptitle(f'Subject Class {label} - Task {task_number}', fontsize=20)
 
     plt.tight_layout()
 
@@ -135,11 +138,11 @@ def plot_task(df, subject_number, task_number, output_directory: str = "Plotting
     os.makedirs(path_to_save, exist_ok=True)
 
     # Save the plot
-    filename_png = os.path.join(path_to_save, f"Subject_{subject_number}_task_plot.png")
-    filename_svg = os.path.join(path_to_save, f"Subject_{subject_number}_task_plot.svg")
+    filename_png = os.path.join(path_to_save, f"Subject_Class_{label}_task_plot.png")
+    # filename_svg = os.path.join(path_to_save, f"Subject_Class_{label}_task_plot.svg")
 
     plt.savefig(filename_png)
-    plt.savefig(filename_svg, format='svg', bbox_inches='tight')
+    # plt.savefig(filename_svg, format='svg', bbox_inches='tight')
     plt.show()
 
 
