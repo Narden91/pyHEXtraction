@@ -18,12 +18,13 @@ def suppress_stdout_stderr():
             yield err, out
 
 
-def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200) -> dict:
+def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200, verbose: bool = None) -> dict:
     """ Compute the statistical feature extraction for the task.
 
     Args:
         task_dataframe (pd.DataFrame): Dataframe containing the data for compute the global features
         fs (int): Sampling frequency of the data in Hz
+        verbose (bool): Boolean to print the features shape
     Returns:
         feature_dataframe: dataframe containing the features of the global features
     """
@@ -58,20 +59,22 @@ def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200) 
         sample_values = np.expand_dims(handwriting_df.data_numpy_array, 0)
         sample_labels = None
 
-    # Get the kinematic features
+    # Get the features pipeline
     fs_kin = kinematic_features_pipeline()
+    fs_din = dynamic_features_pipeline()
+    fs_spa = spatial_features_pipeline()
+    fs_tem = temporal_features_pipeline()
 
-    features_pipeline = features_pipeline + fs_kin
-
+    features_pipeline = features_pipeline + fs_kin + fs_din + fs_spa + fs_tem
     extractor_configuration = {"fs": fs, "logging_settings": {"soft_validation": True}}
 
     with suppress_stdout_stderr():
         extractor = FeatureExtractor(sample_values, sample_labels, **extractor_configuration)
-        extracted = extractor.extract(features_pipeline)
-    print(f"Features shape: {extracted['features'].shape}\n")
-    pprint(extracted)
+        extracted_features = extractor.extract(features_pipeline)
 
-    return
+    print(f"Features shape: {extracted_features['features'].shape}\n") if verbose else None
+
+    return extracted_features
 
 
 def kinematic_features_pipeline() -> list:
@@ -159,21 +162,18 @@ def spatial_features_pipeline() -> list:
         {
             'name': 'writing_length',
             'args': {
-                'statistics': ['mean', 'std', 'iqr'],
                 'in_air': [True, False]
             }
         },
         {
             'name': 'writing_height',
             'args': {
-                'statistics': ['mean', 'std', 'iqr'],
                 'in_air': [True, False]
             }
         },
         {
             'name': 'writing_width',
             'args': {
-                'statistics': ['mean', 'std', 'iqr'],
                 'in_air': [True, False]
             }
         },
@@ -261,61 +261,29 @@ def temporal_features_pipeline() -> list:
         {
             'name': 'writing_duration',
             'args': {
-                'statistics': ['mean', 'std', 'iqr']
             }
         },
         {
             'name': 'writing_duration_overall',
             'args': {
-                'statistics': ['mean', 'std', 'iqr']
             }
         },
         {
             'name': 'ratio_of_writing_durations',
             'args': {
-                'statistics': ['mean', 'std', 'iqr'],
                 'in_air': [True, False]
             }
         },
         {
             'name': 'number_of_interruptions',
             'args': {
-                'statistics': ['mean', 'std', 'iqr']
             }
         },
         {
             'name': 'number_of_interruptions_relative',
             'args': {
-                'statistics': ['mean', 'std', 'iqr']
             }
         }
-    ]
-
-    return features_pipeline
-
-
-def composite_features_pipeline() -> list:
-    """ Get the composite features pipeline. """
-
-    # TODO: Add other features
-    features_pipeline = [
-        {
-            'name': 'writing_tempo',
-            'args': {}
-        },
-        {
-            'name': 'writing_stops',
-            'args': {}
-        },
-        {
-            'name': 'number_of_changes_in_x_profile',
-            'args': {}
-        },
-        {
-            'name': 'number_of_changes_in_y_profile',
-            'args': {}
-        }
-
     ]
 
     return features_pipeline

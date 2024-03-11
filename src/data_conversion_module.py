@@ -116,44 +116,36 @@ def get_handwriting_feature_dataframe(data_source: pd.DataFrame) -> pd.DataFrame
     return handwriting_task
 
 
-def stroke_segmentation(data_source: pd.DataFrame, meta_data_enabled: bool = False,
-                        verbose: bool = False):
+def stroke_segmentation(data_source: pd.DataFrame, verbose: bool = False) -> list:
     """
     Segments the data into strokes based on HandwritingSample library
     Segmentation is done based on the pen_status column (pen-up and pen-down)
 
     Args:
         data_source (pd.DataFrame): Dataframe containing the data
-        meta_data_enabled (bool): If True, add the metadata to the HandwritingSample object
         verbose (bool): If True, print the dataframes of the strokes
     Returns:
         pd.DataFrame: Dataframe containing the data segmented into strokes
     """
+
+    meta_data = {"protocol_id": "dsa_2023",
+                 "device_type": "Wacom One 13.3",
+                 "device_driver": "2.1.0",
+                 "lpi": 2540,  # lines per inch
+                 "time_series_ranges": {
+                     "x": [0, 1920],
+                     "y": [0, 1080],
+                     "azimuth": [0, 180],
+                     "tilt": [0, 90],
+                     "pressure": [0, 32767]}}
 
     # Avoid printing the HandwritingFeatures class output
     with suppress_stdout_stderr():
         # Create a HandwritingSample object from the dataframe
         handwriting_task = HandwritingSample.from_pandas_dataframe(data_source)
 
-    if meta_data_enabled:
-        print(f"Adding metadata to the HandwritingSample object")
-        # Meta data of the device Wacom One 13.3
-        meta_data = {"protocol_id": "dsa_2023",
-                     "device_type": "Wacom One 13.3",
-                     "device_driver": "2.1.0",
-                     "lpi": 2540,  # lines per inch
-                     "time_series_ranges": {
-                         "x": [0, 1920],
-                         "y": [0, 1080],
-                         "azimuth": [0, 180],
-                         "tilt": [0, 90],
-                         "pressure": [0, 32767]}}
-
-        # Add the metadata to the HandwritingSample object
-        handwriting_task.add_meta_data(meta_data=meta_data)
-
-        # Transform all units
-        handwriting_task.transform_all_units()
+        handwriting_task.transform_angle_to_degree(angle=HandwritingSample.TILT)
+        handwriting_task.transform_angle_to_degree(angle=HandwritingSample.AZIMUTH)
 
     # Get all strokes sequentially based on how the task was performed
     strokes = handwriting_task.get_strokes()

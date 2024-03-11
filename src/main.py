@@ -23,6 +23,7 @@ class MainClass:
         self.show_gif = config.settings.show_gif
         self.elaborate_images = config.settings.create_online_images
         self.feature_extraction = config.settings.feature_extraction
+        self.fs_approach = config.settings.fs_approach
         self.plot = config.settings.plotting
         self.task_list = config.settings.task_list
         self.score = config.settings.score_file
@@ -52,9 +53,11 @@ class MainClass:
     def run(self):
         data_source = self.processor.format_path_for_os(self.config.settings.data_source)
         background_images_folder = self.processor.format_path_for_os(self.config.settings.background_images_folder)
-        output_directory_csv = self.processor.format_path_for_os(self.config.settings.output_directory_csv)
+        output_directory_csv = Path(self.processor.format_path_for_os(self.config.settings.output_directory_csv))
         plotting_output_directory = self.processor.format_path_for_os(self.config.settings.output_directory_plots)
         output_task_3d = self.processor.format_path_for_os(self.output_task_3d)
+
+        output_directory_csv.mkdir(parents=True, exist_ok=True)
 
         # Read the score file
         score_df = pd.read_csv(self.score, delimiter=';').fillna(-1).astype(int)
@@ -81,7 +84,7 @@ class MainClass:
 
         # Loop over Subject's folders
         for num_folder, folder in enumerate(tqdm(folders_in_data, desc="Processing Subject Folder:"), start=1):
-            if num_folder < 2:
+            if num_folder < 3:
                 folder = Path(folder)
                 subject_number = self.get_subject_number(folder=folder)
 
@@ -170,53 +173,65 @@ class MainClass:
                                 print(f"[+] Data after Transformation for HandwritingSample Library : \n"
                                       f"{task_df.head(10).to_string()} \n")
 
-                            # Get the strokes using the HandwritingSample library
-                            # stroke_list = stroke_segmentation(data_source=task_df, meta_data_enabled=True,
-                            #                                   verbose=self.verbose)
+                            if self.fs_approach.lower() == "statistical":
+                                # -------------------Statistical Feature Extraction Section------------------- #
+                                if self.verbose:
+                                    print(f"[+] Statistical Feature Extraction for task {task_number + 1}")
+                                # Get the features using the HandwritingSample library from the task
+                                handwriting_feature_dict = statistical_feature_extraction(task_dataframe=task_df,
+                                                                                          verbose=self.verbose)
 
-                            # # -------------------Feature Extraction Section------------------- #
-                            # Get the features using the HandwritingSample library from the task
-                            handwriting_feature_dict = statistical_feature_extraction(task_dataframe=task_df)
+                                task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
+                                                      **anagrafica_data, "Task": task_number + 1}
 
-                            # task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
-                            #                       **anagrafica_data, "Task": task_number + 1}
-                            #
-                            # # Concatenate the feat extracted from current task to the dataframe with incremented index
-                            # subject_dataframe = pd.concat([subject_dataframe,
-                            #                                pd.DataFrame(task_dict_complete, index=[0])],
-                            #                               ignore_index=True)
-                            #
-                            # # Stroke Approach feature extraction
-                            # stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_df)
-                            #
-                            # print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
+                                # Remap the features to the dataframe
+                                features_values = task_dict_complete['features'].flatten()
+                                features_labels = task_dict_complete['labels']
+                                features_dict = {label: value for label, value in zip(features_labels, features_values)}
 
-                            # Save the features extracted from the current task
-                            # save_data_to_csv(stroke_approach_dataframe, task_number + 1, folder, anagrafica_data, config)
+                                task_dict_complete = {k: v for k, v in task_dict_complete.items()
+                                                      if k not in ['features', 'labels']}
+                                task_dict_complete.update(features_dict)
+
+                                subject_dataframe = pd.concat([subject_dataframe, pd.DataFrame(task_dict_complete,
+                                                                                               index=[0])],
+                                                              ignore_index=True)
+
+                            elif self.fs_approach.lower() == "stroke":
+                                # -------------------Stroke Feature Extraction Section------------------- #
+                                if self.verbose:
+                                    print(f"[+] Stroke Feature Extraction for task {task_number + 1}")
+                                # Get the strokes using the HandwritingSample library
+                                stroke_list = stroke_segmentation(data_source=task_df, verbose=self.verbose)
+
+                                stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_df)
+
+                                if self.verbose:
+                                    print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
                         # endregion
 
-            # if self.verbose and subject_dataframe.shape[0] > 0:
-            #     print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
-            #     print(f"[+] Subject dataframe shape: {subject_dataframe.shape}")
-            #
-            # # Check if subject_dataframe is empty
-            # if self.feature_extraction:
-            #     # Order the dataframe by Task
-            #     subject_dataframe = subject_dataframe.sort_values(by=['Id', 'Task'])
-            #
-            #     # Get the unique Task values
-            #     unique_task_values = subject_dataframe['Task'].unique()
-            #
-            #     # Loop over the unique Task values and extract the rows with the same Task value
-            #     for task in unique_task_values:
-            #         task_df = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
-            #
-            #         # Save the dataframe to csv into output_directory_csv
-            #         task_df.to_csv(os.path.join(output_directory_csv, f"Task_{task}.csv"), index=False)
-            #
-            #         if self.verbose:
-            #             print(f"[+] Task {task}: \n{task_df.to_string()}")
+            if self.verbose and subject_dataframe.shape[0] > 0:
+                print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
+                print(f"[+] Subject dataframe shape: {subject_dataframe.shape}")
 
+            # Check if subject_dataframe is not empty
+            if self.feature_extraction:
+                columns_to_move = ["Gender", "Age", "Dominant_Hand", "Task"]
+                other_columns = [col for col in subject_dataframe.columns if col not in columns_to_move]
+                subject_dataframe = subject_dataframe[other_columns + columns_to_move]
+
+                subject_dataframe = subject_dataframe.sort_values(by=['Id', 'Task'])
+                unique_task_values = subject_dataframe['Task'].unique()
+
+                for task in unique_task_values:
+                    task_df = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
+                    task_path_folder = Path(output_directory_csv) / f"Task_{task}.csv"
+                    task_df.to_csv(task_path_folder, index=False)
+
+                    if self.verbose:
+                        print(f"[+] Task {task}: \n{task_df.to_string()}")
+            else:
+                print(f"[-] No feature extracted for Subject {subject_number}")
         return 0
 
 
