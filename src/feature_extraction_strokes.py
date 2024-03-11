@@ -4,6 +4,8 @@ from handwriting_features.features import HandwritingFeatures
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from os import devnull
 
+from handwriting_sample import HandwritingSample
+
 
 @contextmanager
 def suppress_stdout_stderr():
@@ -14,21 +16,34 @@ def suppress_stdout_stderr():
 
 
 # ----------------------------- Features Extraction ------------------------------------- #
-def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFrame) -> pd.DataFrame:
+def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFrame,
+                                       verbose: bool = False) -> pd.DataFrame:
     """ Compute the features of the strokes and the global features for
     the stroke approach feature extraction.
 
     Args:
         strokes (list): Strokes list of the task
         task_dataframe (pd.DataFrame): Dataframe containing the data for compute the global features
+        verbose (bool): Boolean to print the features shape
     Returns:
         feature_dataframe: dataframe containing the features of the global features and stroke features
     """
+    meta_data = {"protocol_id": "dsa_2023",
+                 "device_type": "Wacom One 13.3",
+                 "device_driver": "2.1.0",
+                 "lpi": 2540,  # lines per inch
+                 "time_series_ranges": {
+                     "x": [0, 1920],
+                     "y": [0, 1080],
+                     "azimuth": [0, 180],
+                     "tilt": [0, 90],
+                     "pressure": [0, 32767]}}
 
     # Create an empty dataframe
     feature_dataframe = None
 
     # Iterate over the stroke list
+    # TODO: Add features that provide the x,y of the start and end of the stroke
     for num, stroke in enumerate(strokes):
         # Get the Stroke type
         stroke_type = stroke[0]
@@ -47,8 +62,19 @@ def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFra
 
         # Avoid printing the HandwritingFeatures class output
         with suppress_stdout_stderr():
+            handwriting_df = HandwritingSample.from_pandas_dataframe(task_dataframe)
+
+            # Transform the data to mm
+            handwriting_df.transform_axis_to_mm(conversion_type=HandwritingSample.transformer.LPI,
+                                                lpi_value=meta_data["lpi"],
+                                                shift_to_zero=False)
+
+            # Transform the azimuth and tilt to degrees
+            handwriting_df.transform_angle_to_degree(angle=HandwritingSample.TILT)
+            handwriting_df.transform_angle_to_degree(angle=HandwritingSample.AZIMUTH)
+
             # Create a HandwritingFeatures object from the stroke dataframe
-            feature_data = HandwritingFeatures.from_pandas_dataframe(stroke_dataframe)
+            feature_data = HandwritingFeatures.from_sample(handwriting_df)
 
         # Get the kinematic features
         kinematic_features_dict = get_kinematic_features(feature_data)
@@ -77,8 +103,19 @@ def stroke_approach_feature_extraction(strokes: list, task_dataframe: pd.DataFra
 
     # Avoid printing the HandwritingFeatures class output
     with suppress_stdout_stderr():
+        handwriting_df_glob = HandwritingSample.from_pandas_dataframe(task_dataframe)
+
+        # Transform the data to mm
+        handwriting_df_glob.transform_axis_to_mm(conversion_type=HandwritingSample.transformer.LPI,
+                                                 lpi_value=meta_data["lpi"],
+                                                 shift_to_zero=False)
+
+        # Transform the azimuth and tilt to degrees
+        handwriting_df_glob.transform_angle_to_degree(angle=HandwritingSample.TILT)
+        handwriting_df_glob.transform_angle_to_degree(angle=HandwritingSample.AZIMUTH)
+
         # Create a HandwritingFeatures object from the task dataframe to get the global features
-        feature_global_data = HandwritingFeatures.from_pandas_dataframe(task_dataframe)
+        feature_global_data = HandwritingFeatures.from_sample(handwriting_df_glob)
 
     # Get the composite features
     # composite_features_dict = get_composite_features(feature_global_data)

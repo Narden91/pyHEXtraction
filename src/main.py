@@ -83,8 +83,8 @@ class MainClass:
         print(f"[+] Folders in data: {len(folders_in_data)}") if self.verbose else None
 
         # Loop over Subject's folders
-        for num_folder, folder in enumerate(tqdm(folders_in_data, desc="Processing Subject Folder:"), start=1):
-            if num_folder < 3:
+        for num_folder, folder in enumerate(tqdm(folders_in_data, desc="Processing Subject Folder"), start=1):
+            if num_folder < 2:
                 folder = Path(folder)
                 subject_number = self.get_subject_number(folder=folder)
 
@@ -121,7 +121,7 @@ class MainClass:
                         # task_dataframe = preprocessing.points_type_filtering(task_dataframe,"onpaper")
 
                         # region Plotting
-                        if self.plot:  # Assuming self.plot indicates whether to plot or not
+                        if self.plot:
                             if self.verbose:
                                 print(f"[+] Plotting 3D for task {task_number + 1} of subject {subject_number}")
 
@@ -182,7 +182,8 @@ class MainClass:
                                                                                           verbose=self.verbose)
 
                                 task_dict_complete = {"Id": subject_number, **handwriting_feature_dict,
-                                                      **anagrafica_data, "Task": task_number + 1}
+                                                      **anagrafica_data, "Task": task_number + 1,
+                                                      "Label": sbj_task_label}
 
                                 # Remap the features to the dataframe
                                 features_values = task_dict_complete['features'].flatten()
@@ -204,19 +205,27 @@ class MainClass:
                                 # Get the strokes using the HandwritingSample library
                                 stroke_list = stroke_segmentation(data_source=task_df, verbose=self.verbose)
 
-                                stroke_approach_dataframe = stroke_approach_feature_extraction(stroke_list, task_df)
+                                subject_dataframe = stroke_approach_feature_extraction(strokes=stroke_list,
+                                                                                       task_dataframe=task_df,
+                                                                                       verbose=self.verbose)
+
+                                subject_dataframe['Id'] = subject_number
+                                subject_dataframe['Gender'] = anagrafica_data["Gender"]
+                                subject_dataframe['Age'] = anagrafica_data["Age"]
+                                subject_dataframe['Dominant_Hand'] = anagrafica_data["Dominant_Hand"]
+                                subject_dataframe['Task'] = task_number + 1
+                                subject_dataframe['Label'] = sbj_task_label
 
                                 if self.verbose:
-                                    print(f"[+] Stroke Approach Features: \n{stroke_approach_dataframe.to_string()}")
+                                    print(f"[+] Stroke Approach Features: \n{subject_dataframe.to_string()}")
                         # endregion
 
             if self.verbose and subject_dataframe.shape[0] > 0:
                 print(f"[+] Subject dataframe: \n{subject_dataframe.to_string()}")
                 print(f"[+] Subject dataframe shape: {subject_dataframe.shape}")
 
-            # Check if subject_dataframe is not empty
             if self.feature_extraction:
-                columns_to_move = ["Gender", "Age", "Dominant_Hand", "Task"]
+                columns_to_move = ["Gender", "Age", "Dominant_Hand", "Label", "Task"]
                 other_columns = [col for col in subject_dataframe.columns if col not in columns_to_move]
                 subject_dataframe = subject_dataframe[other_columns + columns_to_move]
 
@@ -225,8 +234,13 @@ class MainClass:
 
                 for task in unique_task_values:
                     task_df = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
-                    task_path_folder = Path(output_directory_csv) / f"Task_{task}.csv"
-                    task_df.to_csv(task_path_folder, index=False)
+
+                    if self.fs_approach.lower() == "statistical":
+                        task_path_folder = Path(output_directory_csv) / f"Task_{task}.csv"
+                        task_df.to_csv(task_path_folder, index=False)
+                    elif self.fs_approach.lower() == "stroke":
+                        task_path_folder = Path(output_directory_csv) / f"Task_{task}_stroke.csv"
+                        task_df.to_csv(task_path_folder, index=False)
 
                     if self.verbose:
                         print(f"[+] Task {task}: \n{task_df.to_string()}")
