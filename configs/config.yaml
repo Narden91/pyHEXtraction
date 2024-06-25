@@ -43,6 +43,6 @@ settings:
   plotting: False # enable plotting for the tasks
   feature_extraction: True # enable feature extraction for the tasks
   fs_approach: "Statistical" # Statistical / Stroke
-  task_list: [1]  # list of tasks to be processed
+  task_list: [17,18,19,20,21]  # list of tasks to be processed
   subject_task_to_plot: [138, 82, 97]  # list of subjects to be plotted
 

@@ -84,14 +84,16 @@ class MainClass:
 
         # Loop over Subject's folders
         for num_folder, folder in enumerate(tqdm(folders_in_data, desc="Processing Subject Folder"), start=1):
-            if num_folder < 2:
+            if True:  # num_folder < 2
                 folder = Path(folder)
                 subject_number = self.get_subject_number(folder=folder)
 
                 anagrafica_data = self.load_and_process_anagrafica(folder=folder)
                 if not anagrafica_data:
                     subjects_missing_anagrafica.add(subject_number)
-                    print(f"[-] Anagrafica data missing for SUBJECT {subject_number}. Skipping.")
+                    if self.verbose:
+                        print(f"[-] Anagrafica data missing for SUBJECT {subject_number}. Skipping.")
+
                     continue
 
                 task_file_list = self.get_task_file_list(folder=folder)
@@ -107,7 +109,7 @@ class MainClass:
                 # Loop over the tasks in the folder of the subject
                 for task_number, task in enumerate(task_file_list):
                     # Debug: computes only the files in the task_list
-                    if task_number + 1 in self.task_list:  # Modify CONFIG for all tasks
+                    if task_number + 1 in self.task_list:  # Modify CONFIG for all tasks DEBUG: task_number + 1 in self.task_list
                         # -------------------Preprocessing Section------------------- #
                         task_df = self.processor.load_and_process_csv(task_file=task)
 
@@ -235,12 +237,20 @@ class MainClass:
                 for task in unique_task_values:
                     task_df = subject_dataframe.loc[subject_dataframe['Task'] == task].reset_index(drop=True)
 
+                    missing_df = pd.DataFrame({'Id': list(subjects_missing_anagrafica)})
+                    missing_df['Task'] = task
+                    missing_df['Label'] = -1
+
+                    final_df = pd.concat([task_df, missing_df], ignore_index=True)
+                    final_df = final_df.sort_values('Id')
+                    final_df = final_df.fillna(0)
+
                     if self.fs_approach.lower() == "statistical":
                         task_path_folder = Path(output_directory_csv) / f"Task_{task}.csv"
-                        task_df.to_csv(task_path_folder, index=False)
+                        final_df.to_csv(task_path_folder, index=False)
                     elif self.fs_approach.lower() == "stroke":
                         task_path_folder = Path(output_directory_csv) / f"Task_{task}_stroke.csv"
-                        task_df.to_csv(task_path_folder, index=False)
+                        final_df.to_csv(task_path_folder, index=False)
 
                     if self.verbose:
                         print(f"[+] Task {task}: \n{task_df.to_string()}")
