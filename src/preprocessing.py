@@ -157,9 +157,6 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
         with open(file_csv) as file_csv:
             content = file_csv.readlines()
 
-
-        print(f"Loading Task Data from {file_csv}")
-
         # Separate Header and Rows
         header = content[:1]
         rows = content[1:]
