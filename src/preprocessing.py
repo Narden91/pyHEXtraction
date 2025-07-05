@@ -147,8 +147,8 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
     It reads the csv file line by line, separates the header from the rows, splits the header and rows
     by comma, removes the spaces, filters the desired values, creates a dataframe from the header and
     rows, pops the sequence, timestamp and PenId columns, and re-orders the dataframe columns
-    
-    :param file_csv: str 
+
+    :param file_csv: str
     :type file_csv: str
     :return: Nothing.
     """
@@ -157,17 +157,26 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
         with open(file_csv) as file_csv:
             content = file_csv.readlines()
 
+
+        print(f"Loading Task Data from {file_csv}")
+
         # Separate Header and Rows
         header = content[:1]
         rows = content[1:]
 
+        # print(f"Header: {header}")
+        # print(f"Rows: {len(rows)}")
+
         # Split the header and remove the spaces
         header = [x.strip() for xs in header for x in xs.split(',')]
+
+        # Remove BOM character if present
+        header = [col.lstrip('ï»¿').strip() for col in header]
 
         # Remove unused features
         header = header[0:5] + header[-7:]
 
-        # Split the rows content by comma and remove spaces 
+        # Split the rows content by comma and remove spaces
         rows = [row.replace(" ", "").strip().split(',', -1) for row in rows]
 
         # Filter only the desired values
@@ -181,7 +190,7 @@ def load_data_from_csv(file_csv: str) -> pd.DataFrame:
         header.pop(header.index('Timestamp'))
         header.pop(header.index('PenId'))
 
-        # Re-order dataframe columns 
+        # Re-order dataframe columns
         # df = df[header + ['Timestamp']]
         task_data = task_data[header]
 

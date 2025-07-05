@@ -5,6 +5,7 @@ from handwriting_features.features import HandwritingFeatures
 from handwriting_features.interface.featurizer import FeatureExtractor
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from os import devnull
+from typing import Union, Optional
 
 warnings.filterwarnings("ignore")
 
@@ -30,6 +31,11 @@ def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200, 
     Returns:
         feature_dataframe: dataframe containing the features of the global features
     """
+    if task_dataframe.empty or 'pen_status' not in task_dataframe.columns or task_dataframe['pen_status'].sum() == 0:
+        if verbose:
+            print("[-] Input DataFrame is empty or contains no on-paper data. Skipping feature extraction.")
+        # Return a dictionary with empty but valid structure
+        return {'features': np.array([[]]), 'labels': []}
 
     features_pipeline = []
 
@@ -45,9 +51,24 @@ def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200, 
                      "tilt": [0, 90],
                      "pressure": [0, 4096]}}
 
+    # Pre-process the dataframe to handle negative values
+    task_dataframe_processed = task_dataframe.copy()
+
+    # Shift x and y coordinates to ensure they are non-negative
+    if 'x' in task_dataframe_processed.columns:
+        x_min = task_dataframe_processed['x'].min()
+        if x_min < 0:
+            task_dataframe_processed['x'] = task_dataframe_processed['x'] - x_min
+
+    if 'y' in task_dataframe_processed.columns:
+        y_min = task_dataframe_processed['y'].min()
+        if y_min < 0:
+            task_dataframe_processed['y'] = task_dataframe_processed['y'] - y_min
+
     # Avoid printing
     with suppress_stdout_stderr():
-        handwriting_df = HandwritingSample.from_pandas_dataframe(task_dataframe)
+        # Create HandwritingSample with validation disabled to avoid negative value error
+        handwriting_df = HandwritingSample.from_pandas_dataframe(task_dataframe_processed, validate=False)
 
         # Transform the data to mm
         handwriting_df.transform_axis_to_mm(conversion_type=HandwritingSample.transformer.LPI,
@@ -82,9 +103,9 @@ def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200, 
     # Add custom features to the extracted features
     # Convert custom features to numpy array format to match the existing structure
     custom_features_array = np.array([[
-        custom_features['custom_x_profile_changes'],
-        custom_features['custom_y_profile_changes'],
-        custom_features['custom_pressure_profile_changes']
+        custom_features['number_of_changes_in_x_profile'],
+        custom_features['number_of_changes_in_y_profile'],
+        custom_features['number_of_changes_in_pressure_profile']
     ]])
 
     # Combine original features with custom features
@@ -100,9 +121,9 @@ def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200, 
 
         # Create or update the labels (feature names)
         custom_feature_names = [
-            'custom_x_profile_changes',
-            'custom_y_profile_changes',
-            'custom_pressure_profile_changes'
+            'number_of_changes_in_x_profile',
+            'number_of_changes_in_y_profile',
+            'number_of_changes_in_pressure_profile'
         ]
 
         # Check if labels exist in the extracted_features
@@ -125,9 +146,9 @@ def statistical_feature_extraction(task_dataframe: pd.DataFrame, fs: int = 200, 
         extracted_features = {
             'features': custom_features_array,
             'labels': [
-                'custom_x_profile_changes',
-                'custom_y_profile_changes',
-                'custom_pressure_profile_changes'
+                'number_of_changes_in_x_profile',
+                'number_of_changes_in_y_profile',
+                'number_of_changes_in_pressure_profile'
             ]
         }
 
@@ -384,20 +405,25 @@ def composite_features_pipeline() -> list:
     return features_pipeline
 
 
-import numpy as np
-import pandas as pd
-from typing import Union, Optional
-
-
 def calculate_number_of_changes_in_x_profile(
         x_coordinates: np.ndarray,
         pen_status: Optional[np.ndarray] = None,
-        threshold: float = 1.0
+        adaptive_threshold: bool = True,
+        min_threshold: float = 0.1
 ) -> int:
-    """Calculate the number of changes in x-direction profile."""
+    """
+    Calculate the number of changes in x-direction profile using robust methods.
+
+    Uses multiple approaches:
+    1. Adaptive threshold based on data statistics
+    2. Zero-crossing detection on smoothed velocity
+    3. Peak detection on absolute velocity
+    4. Fallback to simple direction changes
+    """
     if len(x_coordinates) < 3:
         return 0
 
+    # Filter by pen status if provided
     if pen_status is not None:
         valid_indices = pen_status == True
         if not np.any(valid_indices):
@@ -409,9 +435,65 @@ def calculate_number_of_changes_in_x_profile(
     if len(x_coords) < 3:
         return 0
 
+    # Calculate velocity (first derivative)
     dx = np.diff(x_coords)
+
+    if len(dx) < 2:
+        return 0
+
+    # Method 1: Adaptive threshold approach
+    if adaptive_threshold:
+        # Calculate adaptive threshold based on data statistics
+        dx_std = np.std(dx)
+        dx_mad = np.median(np.abs(dx - np.median(dx)))  # Median Absolute Deviation
+
+        # Use the more robust measure
+        if dx_mad > 0:
+            threshold = max(min_threshold, dx_mad * 1.4826)  # 1.4826 makes MAD comparable to std
+        else:
+            threshold = max(min_threshold, dx_std * 0.5)
+    else:
+        threshold = min_threshold
+
+    # Method 2: Zero-crossing detection on smoothed velocity
+    if len(dx) >= 5:
+        # Apply simple moving average smoothing
+        window_size = min(5, len(dx) // 3)
+        if window_size >= 3:
+            smoothed_dx = np.convolve(dx, np.ones(window_size) / window_size, mode='valid')
+
+            # Find zero crossings (sign changes)
+            zero_crossings = 0
+            for i in range(1, len(smoothed_dx)):
+                if smoothed_dx[i - 1] * smoothed_dx[i] < 0:  # Sign change
+                    if abs(smoothed_dx[i - 1]) > threshold or abs(smoothed_dx[i]) > threshold:
+                        zero_crossings += 1
+
+            if zero_crossings > 0:
+                return zero_crossings
+
+    # Method 3: Peak detection on absolute velocity
+    abs_dx = np.abs(dx)
+    if len(abs_dx) >= 3:
+        # Find peaks in absolute velocity (indicating direction changes)
+        peaks = []
+        for i in range(1, len(abs_dx) - 1):
+            if (abs_dx[i] > abs_dx[i - 1] and abs_dx[i] > abs_dx[i + 1] and
+                    abs_dx[i] > threshold):
+                peaks.append(i)
+
+        if len(peaks) > 0:
+            return len(peaks)
+
+    # Method 4: Fallback - simple direction changes with adaptive threshold
     significant_movement = np.abs(dx) > threshold
     dx_filtered = dx[significant_movement]
+
+    if len(dx_filtered) < 2:
+        # Further fallback - use even smaller threshold
+        threshold_fallback = max(min_threshold * 0.1, np.percentile(np.abs(dx), 25))
+        significant_movement = np.abs(dx) > threshold_fallback
+        dx_filtered = dx[significant_movement]
 
     if len(dx_filtered) < 2:
         return 0
@@ -428,12 +510,22 @@ def calculate_number_of_changes_in_x_profile(
 def calculate_number_of_changes_in_y_profile(
         y_coordinates: np.ndarray,
         pen_status: Optional[np.ndarray] = None,
-        threshold: float = 1.0
+        adaptive_threshold: bool = True,
+        min_threshold: float = 0.1
 ) -> int:
-    """Calculate the number of changes in y-direction profile."""
+    """
+    Calculate the number of changes in y-direction profile using robust methods.
+
+    Uses multiple approaches:
+    1. Adaptive threshold based on data statistics
+    2. Zero-crossing detection on smoothed velocity
+    3. Peak detection on absolute velocity
+    4. Fallback to simple direction changes
+    """
     if len(y_coordinates) < 3:
         return 0
 
+    # Filter by pen status if provided
     if pen_status is not None:
         valid_indices = pen_status == True
         if not np.any(valid_indices):
@@ -445,9 +537,65 @@ def calculate_number_of_changes_in_y_profile(
     if len(y_coords) < 3:
         return 0
 
+    # Calculate velocity (first derivative)
     dy = np.diff(y_coords)
+
+    if len(dy) < 2:
+        return 0
+
+    # Method 1: Adaptive threshold approach
+    if adaptive_threshold:
+        # Calculate adaptive threshold based on data statistics
+        dy_std = np.std(dy)
+        dy_mad = np.median(np.abs(dy - np.median(dy)))  # Median Absolute Deviation
+
+        # Use the more robust measure
+        if dy_mad > 0:
+            threshold = max(min_threshold, dy_mad * 1.4826)  # 1.4826 makes MAD comparable to std
+        else:
+            threshold = max(min_threshold, dy_std * 0.5)
+    else:
+        threshold = min_threshold
+
+    # Method 2: Zero-crossing detection on smoothed velocity
+    if len(dy) >= 5:
+        # Apply simple moving average smoothing
+        window_size = min(5, len(dy) // 3)
+        if window_size >= 3:
+            smoothed_dy = np.convolve(dy, np.ones(window_size) / window_size, mode='valid')
+
+            # Find zero crossings (sign changes)
+            zero_crossings = 0
+            for i in range(1, len(smoothed_dy)):
+                if smoothed_dy[i - 1] * smoothed_dy[i] < 0:  # Sign change
+                    if abs(smoothed_dy[i - 1]) > threshold or abs(smoothed_dy[i]) > threshold:
+                        zero_crossings += 1
+
+            if zero_crossings > 0:
+                return zero_crossings
+
+    # Method 3: Peak detection on absolute velocity
+    abs_dy = np.abs(dy)
+    if len(abs_dy) >= 3:
+        # Find peaks in absolute velocity (indicating direction changes)
+        peaks = []
+        for i in range(1, len(abs_dy) - 1):
+            if (abs_dy[i] > abs_dy[i - 1] and abs_dy[i] > abs_dy[i + 1] and
+                    abs_dy[i] > threshold):
+                peaks.append(i)
+
+        if len(peaks) > 0:
+            return len(peaks)
+
+    # Method 4: Fallback - simple direction changes with adaptive threshold
     significant_movement = np.abs(dy) > threshold
     dy_filtered = dy[significant_movement]
+
+    if len(dy_filtered) < 2:
+        # Further fallback - use even smaller threshold
+        threshold_fallback = max(min_threshold * 0.1, np.percentile(np.abs(dy), 25))
+        significant_movement = np.abs(dy) > threshold_fallback
+        dy_filtered = dy[significant_movement]
 
     if len(dy_filtered) < 2:
         return 0
@@ -464,14 +612,23 @@ def calculate_number_of_changes_in_y_profile(
 def calculate_pressure_profile_changes(
         pressure_values: np.ndarray,
         pen_status: Optional[np.ndarray] = None,
-        method: str = 'peaks_valleys',
+        method: str = 'adaptive_peaks',
         smoothing_window: int = 3,
-        min_pressure_change: float = 0.1
+        min_pressure_change: float = 0.05
 ) -> int:
-    """Calculate the number of significant changes in pressure profile."""
+    """
+    Calculate the number of significant changes in pressure profile using robust methods.
+
+    Methods available:
+    - 'adaptive_peaks': Adaptive peak detection with multiple fallbacks
+    - 'derivative_analysis': Analysis of pressure derivative patterns
+    - 'quantile_transitions': Transitions between pressure levels
+    - 'combined': Uses all methods and returns the maximum
+    """
     if len(pressure_values) < 3:
         return 0
 
+    # Filter by pen status if provided
     if pen_status is not None:
         valid_indices = pen_status == True
         if not np.any(valid_indices):
@@ -483,31 +640,108 @@ def calculate_pressure_profile_changes(
     if len(pressure) < 3:
         return 0
 
-    pressure_min, pressure_max = np.min(pressure), np.max(pressure)
-    if pressure_max == pressure_min:
+    # Handle constant pressure case
+    if np.all(pressure == pressure[0]):
         return 0
 
-    pressure_normalized = (pressure - pressure_min) / (pressure_max - pressure_min)
+    # Robust normalization using percentiles to handle outliers
+    p_min, p_max = np.percentile(pressure, [5, 95])
+    if p_max == p_min:
+        p_min, p_max = np.min(pressure), np.max(pressure)
 
-    if smoothing_window > 1 and len(pressure_normalized) > smoothing_window:
-        kernel = np.ones(smoothing_window) / smoothing_window
+    if p_max == p_min:
+        return 0
+
+    pressure_normalized = np.clip((pressure - p_min) / (p_max - p_min), 0, 1)
+
+    # Adaptive smoothing based on data length
+    if len(pressure_normalized) > 10:
+        smoothing_window = min(smoothing_window, len(pressure_normalized) // 5)
+    else:
+        smoothing_window = 1
+
+    if smoothing_window > 1:
+        # Use Gaussian-like smoothing instead of simple moving average
+        kernel = np.exp(-0.5 * np.linspace(-2, 2, smoothing_window) ** 2)
+        kernel = kernel / np.sum(kernel)
         pressure_smooth = np.convolve(pressure_normalized, kernel, mode='valid')
     else:
         pressure_smooth = pressure_normalized
 
-    if method == 'peaks_valleys':
-        changes = 0
-        for i in range(1, len(pressure_smooth) - 1):
-            if ((pressure_smooth[i] > pressure_smooth[i - 1] and
-                 pressure_smooth[i] > pressure_smooth[i + 1]) or
-                    (pressure_smooth[i] < pressure_smooth[i - 1] and
-                     pressure_smooth[i] < pressure_smooth[i + 1])):
-                local_range = max(pressure_smooth[i - 1:i + 2]) - min(pressure_smooth[i - 1:i + 2])
-                if local_range > min_pressure_change:
-                    changes += 1
-    else:
-        # Default to peaks_valleys if other methods not implemented
-        changes = 0
+    changes = 0
+
+    if method == 'adaptive_peaks' or method == 'combined':
+        # Method 1: Adaptive peak detection
+        if len(pressure_smooth) >= 3:
+            # Calculate adaptive threshold for peak detection
+            pressure_std = np.std(pressure_smooth)
+            pressure_mad = np.median(np.abs(pressure_smooth - np.median(pressure_smooth)))
+
+            if pressure_mad > 0:
+                adaptive_threshold = max(min_pressure_change, pressure_mad * 1.4826 * 0.5)
+            else:
+                adaptive_threshold = max(min_pressure_change, pressure_std * 0.3)
+
+            # Find peaks and valleys
+            peaks_valleys = 0
+            for i in range(1, len(pressure_smooth) - 1):
+                is_peak = (pressure_smooth[i] > pressure_smooth[i - 1] and
+                           pressure_smooth[i] > pressure_smooth[i + 1])
+                is_valley = (pressure_smooth[i] < pressure_smooth[i - 1] and
+                             pressure_smooth[i] < pressure_smooth[i + 1])
+
+                if is_peak or is_valley:
+                    # Check if the change is significant
+                    local_range = max(pressure_smooth[max(0, i - 2):min(len(pressure_smooth), i + 3)]) - \
+                                  min(pressure_smooth[max(0, i - 2):min(len(pressure_smooth), i + 3)])
+                    if local_range > adaptive_threshold:
+                        peaks_valleys += 1
+
+            changes = max(changes, peaks_valleys)
+
+    if method == 'derivative_analysis' or method == 'combined':
+        # Method 2: Pressure derivative analysis
+        if len(pressure_smooth) >= 4:
+            dp = np.diff(pressure_smooth)
+
+            # Find significant changes in derivative
+            dp_threshold = max(min_pressure_change, np.std(dp) * 0.5)
+
+            # Count direction changes in significant derivatives
+            significant_dp = dp[np.abs(dp) > dp_threshold]
+            if len(significant_dp) >= 2:
+                signs = np.sign(significant_dp)
+                non_zero_signs = signs[signs != 0]
+                if len(non_zero_signs) >= 2:
+                    derivative_changes = np.sum(np.diff(non_zero_signs) != 0)
+                    changes = max(changes, derivative_changes)
+
+    if method == 'quantile_transitions' or method == 'combined':
+        # Method 3: Quantile-based transitions
+        if len(pressure_smooth) >= 5:
+            # Use more granular quantiles for better detection
+            quantiles = np.quantile(pressure_smooth, [0.2, 0.4, 0.6, 0.8])
+
+            # Classify each point into pressure levels
+            pressure_levels = np.digitize(pressure_smooth, quantiles)
+
+            # Count level transitions
+            level_changes = np.diff(pressure_levels)
+            quantile_changes = np.sum(level_changes != 0)
+            changes = max(changes, quantile_changes)
+
+    # Fallback method: Simple threshold-based detection
+    if changes == 0:
+        # Use a very small threshold as last resort
+        fallback_threshold = max(min_pressure_change * 0.1, np.std(pressure_smooth) * 0.1)
+
+        # Find any significant variations
+        for i in range(1, len(pressure_smooth)):
+            if abs(pressure_smooth[i] - pressure_smooth[i - 1]) > fallback_threshold:
+                changes += 1
+
+        # Cap the fallback result to be reasonable
+        changes = min(changes, len(pressure_smooth) // 2)
 
     return int(changes)
 
@@ -525,9 +759,9 @@ def extract_custom_handwriting_features(sample_values: np.ndarray) -> dict:
     """
     if sample_values.shape[0] == 0 or sample_values.shape[1] == 0:
         return {
-            'custom_x_profile_changes': 0,
-            'custom_y_profile_changes': 0,
-            'custom_pressure_profile_changes': 0
+            'number_of_changes_in_x_profile': 0,
+            'number_of_changes_in_y_profile': 0,
+            'number_of_changes_in_pressure_profile': 0
         }
 
     # Extract the sample (remove batch dimension)
@@ -541,14 +775,14 @@ def extract_custom_handwriting_features(sample_values: np.ndarray) -> dict:
 
     # Calculate custom features
     custom_features = {
-        'custom_x_profile_changes': calculate_number_of_changes_in_x_profile(
-            x_coords, pen_status, threshold=1.0
+        'number_of_changes_in_x_profile': calculate_number_of_changes_in_x_profile(
+            x_coords, pen_status, adaptive_threshold=True, min_threshold=0.1
         ),
-        'custom_y_profile_changes': calculate_number_of_changes_in_y_profile(
-            y_coords, pen_status, threshold=1.0
+        'number_of_changes_in_y_profile': calculate_number_of_changes_in_y_profile(
+            y_coords, pen_status, adaptive_threshold=True, min_threshold=0.1
         ),
-        'custom_pressure_profile_changes': calculate_pressure_profile_changes(
-            pressure, pen_status, method='peaks_valleys', min_pressure_change=0.1
+        'number_of_changes_in_pressure_profile': calculate_pressure_profile_changes(
+            pressure, pen_status, method='combined', min_pressure_change=0.05
         )
     }
 
