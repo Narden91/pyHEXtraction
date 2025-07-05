@@ -25,7 +25,7 @@ class MainClass:
         self.feature_extraction = config.settings.feature_extraction
         self.fs_approach = config.settings.fs_approach
         self.plot = config.settings.plotting
-        self.task_list = config.settings.task_list
+        self.task_list = config.settings.task_list if config.settings.task_list else list(range(1,22))
         self.score = config.settings.score_file
         self.overwrite_flag = config.settings.overwrite
         self.subject_task_to_plot = config.settings.subject_task_to_plot
@@ -59,7 +59,7 @@ class MainClass:
 
         output_directory_csv.mkdir(parents=True, exist_ok=True)
 
-        # Read the score file
+        # Read the score file if available otherwise make
         score_df = pd.read_csv(self.score, delimiter=';').fillna(-1).astype(int)
 
         folders_in_data, message = self.processor.get_directory_contents(data_source, 'folders')
